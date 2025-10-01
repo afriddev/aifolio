@@ -3,6 +3,7 @@ from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 from database import psqlDbClient
+from app.controllers import ChatRouter
 
 
 @asynccontextmanager
@@ -10,7 +11,8 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(psqlDbClient.connect())
     yield
     try:
-        await asyncio.wait_for(psqlDbClient.close(), timeout=3)
+        print("")
+        # await asyncio.wait_for(psqlDbClient.close(), timeout=3)
     except asyncio.TimeoutError:
         print("⚠️ DB close timed out")
 
@@ -24,10 +26,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+app.include_router(ChatRouter, prefix="/api/v1")
 
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=False)

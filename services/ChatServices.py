@@ -17,6 +17,7 @@ from enums import (
     ChatResponseStatusEnum,
 )
 
+from utils import GetNvidiaURL,GetNvidiaAPIKey
 
 openAiClient = AsyncOpenAI(base_url="", api_key="")
 
@@ -24,6 +25,10 @@ openAiClient = AsyncOpenAI(base_url="", api_key="")
 class ChatServices(ChatServicesImpl):
 
     async def OpenaiChat(self, modelParams: ChatRequestModel) -> Any:
+        if modelParams.method == "openai":
+            openAiClient.base_url = GetNvidiaURL()
+            openAiClient.api_key = GetNvidiaAPIKey()
+
         createCall = openAiClient.chat.completions.create(
             messages=cast(Any, modelParams.messages),
             model=modelParams.model.value[0],
