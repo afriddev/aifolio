@@ -3,11 +3,11 @@ from app.implementations import ChatControllerServiceImpl
 from app.models import ChatRequestModel, FileModel
 from fastapi.responses import StreamingResponse, JSONResponse
 from models import ChatRequestModel as ChatServiceRequestModel, ChatMessageModel
-from enums import OpenaiChatModelsEnum, ChatMessageRoleEnum,CerebrasChatModelEnum
+from enums import OpenaiChatModelsEnum, ChatMessageRoleEnum, CerebrasChatModelEnum
 from services import ChatServices, DocServices
 from app.utils import CHAT_CONTROLLER_CHAT_PROMPT
 from database import mongoClient
-from uuid import uuid4  
+from uuid import uuid4
 from app.state import chatDetectedTools, chatCompletionEvents
 
 chatService = ChatServices()
@@ -40,9 +40,8 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 },
             )
 
-    async def GenerateResumeContent(
-        self, messages: list[ChatMessageModel]
-    ) -> StreamingResponse:
+    async def GenerateResumeContent(self, messages: list[ChatMessageModel]):
+        messages.pop(0)
         messages.append(
             ChatMessageModel(
                 role=ChatMessageRoleEnum.SYSTEM,
@@ -57,21 +56,25 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 }
 
                 - Replace the value of "summary" with the actual resume or message content.
-                - Do not output anything outside this JSON object (no Markdown, no extra text).
+                - Do not output anything outside this JSON object
+                - Do not remove or rewrite any details, project descriptions, or summaries.
+                - Use all collected content with grammar/spelling corrections only.
+                - Read all chat for any updates in resume content. 
+                 
 
                 """,
-                            )
+            )
         )
 
         response = await chatService.Chat(
             modelParams=ChatServiceRequestModel(
                 messages=messages,
                 maxCompletionTokens=20000,
-                model=CerebrasChatModelEnum.GPT_OSS_120B,
+                model=CerebrasChatModelEnum.QWEN_235B,
                 method="openai",
                 temperature=0.0,
                 topP=0.9,
-                stream=True,
+                stream=False,
                 responseFormat={
                     "type": "object",
                     "properties": {
@@ -82,7 +85,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 },
             )
         )
-        return response
+        print(response)
 
     async def Chat(self, request: ChatRequestModel) -> StreamingResponse:
 
@@ -135,9 +138,9 @@ class ChatControllerServices(ChatControllerServiceImpl):
                     {
                         "type": "function",
                         "function": {
-                            "name": "generate_resume"   ,
+                            "name": "generate_resume",
                             "description": "Generate a canonical resume from stored user content (server-side).",
-                            "parameters": { 
+                            "parameters": {
                                 "type": "object",
                                 "properties": {},
                                 "required": [],
@@ -149,19 +152,13 @@ class ChatControllerServices(ChatControllerServiceImpl):
             )
         )
 
-        async def check_tool_when_done():
+        async def CheckForToolExecution():
             await chatCompletionEvents[requestId].wait()
             if chatDetectedTools[requestId]:
-                print(
-                    f"[2025-10-02 10:57:16] User afriddev used tool: {chatDetectedTools[requestId]}"
-                )
-                response  = await self.GenerateResumeContent(messages=chatMessage)
-                return response
-
+                await self.GenerateResumeContent(messages=chatMessage)
             del chatDetectedTools[requestId]
             del chatCompletionEvents[requestId]
-            
 
-        asyncio.create_task(check_tool_when_done())
+        asyncio.create_task(CheckForToolExecution())
 
-        return response 
+        return response
