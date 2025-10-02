@@ -14,17 +14,27 @@ docService = DocServices()
 
 class ChatControllerServices(ChatControllerServiceImpl):
 
-    async def UploadFile(self, request: FileModel):
-        client = await mongoClient.aconnect()
-        db = client["documents"]
-        collection = db["files"]
-        response = await collection.insert_one(request.model_dump())
-        if response.inserted_id:
+    async def UploadFile(self, request: FileModel) -> JSONResponse:
+        try:
+            text, _ = docService.ExtractTextAndImagesFromPdf(request.data)
+            db = mongoClient["documents"]
+            collection = db["files"]
+            request.text = text
+            response = collection.insert_one(request.model_dump())
+
             return JSONResponse(
                 status_code=200,
                 content={
-                    "message": "File uploaded successfully",
+                    "data": "SUCCESS",
                     "id": str(response.inserted_id),
+                },
+            )
+        except Exception as e:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "data": "ERROR",
+                    "error": str(e),
                 },
             )
 

@@ -8,7 +8,7 @@ from app.controllers import ChatRouter
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    asyncio.create_task(psqlDbClient.connect())
+    # asyncio.create_task(psqlDbClient.connect())
     yield
     try:
         print("")

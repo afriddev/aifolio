@@ -14,4 +14,4 @@ async def chat(request: ChatRequestModel) -> StreamingResponse:
 
 @ChatRouter.post('/upload')
 async def upload(request:FileModel):
-    await chatService.UploadFile(request)
+    return await chatService.UploadFile(request)   

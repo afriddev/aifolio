@@ -15,6 +15,7 @@ class FileModel(BaseModel):
     mediaType: str
     data: str
     size: int
+    text: str | None = None
 
 
 class ChatRequestModel(BaseModel):

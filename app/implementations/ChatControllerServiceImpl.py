@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from app.models import ChatRequestModel,FileModel
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse,JSONResponse
 
 
 class ChatControllerServiceImpl(ABC):
@@ -10,6 +10,6 @@ class ChatControllerServiceImpl(ABC):
         pass
     
     @abstractmethod
-    async def UploadFile(self, request: FileModel) -> None:
+    async def UploadFile(self, request: FileModel) -> JSONResponse:
         pass
 
