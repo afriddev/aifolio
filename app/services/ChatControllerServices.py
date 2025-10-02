@@ -5,7 +5,11 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from models import ChatRequestModel as ChatServiceRequestModel, ChatMessageModel
 from enums import OpenaiChatModelsEnum, ChatMessageRoleEnum, CerebrasChatModelEnum
 from services import ChatServices, DocServices
-from app.utils import CHAT_CONTROLLER_CHAT_PROMPT
+from app.utils import (
+    CHAT_CONTROLLER_CHAT_PROMPT,
+    GENERATE_RESUME_PROMPT,
+    CHAT_SUMMARY_PROMPT,
+)
 from database import mongoClient
 from uuid import uuid4
 from app.schemas import DocumentsFIleSchema
@@ -14,9 +18,42 @@ from typing import Any
 
 chatService = ChatServices()
 docService = DocServices()
+db = mongoClient["aifolio"]
 
 
 class ChatControllerServices(ChatControllerServiceImpl):
+
+    async def GenerateChatSummary(self, query: str):
+        messages: list[ChatMessageModel] = [
+            ChatMessageModel(
+                role=ChatMessageRoleEnum.SYSTEM,
+                content=CHAT_SUMMARY_PROMPT,
+            ),
+            ChatMessageModel(
+                role=ChatMessageRoleEnum.USER,
+                content=query,
+            ),
+        ]
+        response = await chatService.Chat(
+            modelParams=ChatServiceRequestModel(
+                messages=messages,
+                maxCompletionTokens=500,
+                model=CerebrasChatModelEnum.META_LLAMA_17B_MAVERICK,
+                method="cerebras",
+                temperature=0.7,
+                topP=0.9,
+                stream=False,
+                responseFormat={
+                    "type": "object",
+                    "properties": {
+                        "summary": {"type": "string"},
+                    },
+                    "required": ["summary"],
+                    "additionalProperties": False,
+                },
+            )
+        )
+        print(response)
 
     async def Chat(self, request: ChatRequestModel) -> StreamingResponse:
 
@@ -24,6 +61,9 @@ class ChatControllerServices(ChatControllerServiceImpl):
             fileData = ""
             if request.fileId:
                 fileData = self.GetFileContent(request.fileId)
+
+            if len(request.messages) == 0:
+                asyncio.create_task(self.GenerateChatSummary(request.query))
 
             chatMessages: list[ChatMessageModel] = [
                 ChatMessageModel(
@@ -99,7 +139,6 @@ class ChatControllerServices(ChatControllerServiceImpl):
             )
 
     def GetFileContent(self, fileId: str) -> str:
-        db = mongoClient["documents"]
         collection = db["files"]
         fileData = collection.find_one({"id": fileId})
         if fileData:
@@ -122,7 +161,6 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 chatId=request.chatId,
             )
 
-            db = mongoClient["documents"]
             collection = db["files"]
             collection.insert_one(dbSchema.model_dump())
             return JSONResponse(
@@ -146,24 +184,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
         messages.append(
             ChatMessageModel(
                 role=ChatMessageRoleEnum.SYSTEM,
-                content="""
-                # Output Schema
-                - When generating the final response (resume or otherwise), always wrap it in the following JSON structure:
-
-                {
-                "response": {
-                    "summary": "..."
-                }
-                }
-
-                - Replace the value of "summary" with the actual resume or message content.
-                - Do not output anything outside this JSON object
-                - Do not remove or rewrite any details, project descriptions, or summaries.
-                - Use all collected content with grammar/spelling corrections only.
-                - Read all chat for any updates in resume content. 
-                 
-
-                """,
+                content=GENERATE_RESUME_PROMPT,
             )
         )
         response = await chatService.Chat(
@@ -171,7 +192,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 messages=messages,
                 maxCompletionTokens=20000,
                 model=CerebrasChatModelEnum.QWEN_235B,
-                method="openai",
+                method="cerebras",
                 temperature=0.0,
                 topP=0.9,
                 stream=False,

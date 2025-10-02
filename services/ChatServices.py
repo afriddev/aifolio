@@ -12,26 +12,31 @@ from models import (
     ChatResponseModel,
     ChatUsageModel,
 )
+from cerebras.cloud.sdk import AsyncCerebras
 
 from enums import (
     ChatResponseStatusEnum,
 )
 
-from utils import GetNvidiaURL, GetNvidiaAPIKey
+from utils import GetNvidiaURL, GetNvidiaAPIKey, GetCerebrasAPIKey
 from app.state import ChatUsedTool, ChatEvent, chatContent, chatReasoning
 
 
 openAiClient = AsyncOpenAI(base_url="", api_key="")
+cerebrasClient = AsyncCerebras(api_key="")
 
 
 class ChatServices(ChatServicesImpl):
 
     async def OpenaiChat(self, modelParams: ChatRequestModel) -> Any:
+        client = openAiClient if modelParams.method == "openai" else cerebrasClient
         if modelParams.method == "openai":
             openAiClient.base_url = GetNvidiaURL()
             openAiClient.api_key = GetNvidiaAPIKey()
+        elif modelParams.method == "cerebras":
+            cerebrasClient.api_key = GetCerebrasAPIKey()
 
-        createCall = openAiClient.chat.completions.create(
+        createCall = client.chat.completions.create(
             messages=cast(Any, modelParams.messages),
             model=modelParams.model.value[0],
             max_tokens=modelParams.maxCompletionTokens,

@@ -1,4 +1,12 @@
-from .ChatControllerServiceUtils import CHAT_CONTROLLER_CHAT_PROMPT
+from .ChatControllerServiceUtils import (
+    CHAT_CONTROLLER_CHAT_PROMPT,
+    GENERATE_RESUME_PROMPT,
+    CHAT_SUMMARY_PROMPT,
+)
 
 
-__all__ = ["CHAT_CONTROLLER_CHAT_PROMPT"]
+__all__ = [
+    "CHAT_CONTROLLER_CHAT_PROMPT",
+    "GENERATE_RESUME_PROMPT",
+    "CHAT_SUMMARY_PROMPT",
+]

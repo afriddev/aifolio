@@ -1,5 +1,8 @@
-from .ChatServiceUtils import GetNvidiaAPIKey,GetNvidiaURL
+from .ChatServiceUtils import (
+    GetNvidiaAPIKey,
+    GetNvidiaURL,
+    GetCerebrasAPIKey,
+)
 
 
-
-__all__ = ["GetNvidiaAPIKey","GetNvidiaURL"]
+__all__ = ["GetNvidiaAPIKey", "GetNvidiaURL", "GetCerebrasAPIKey"]
