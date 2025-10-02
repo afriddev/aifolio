@@ -8,8 +8,8 @@ client = OpenAI(
 )
 
 completion = client.chat.completions.create(
-  model="bytedance/seed-oss-36b-instruct",
-  messages=[{"role":"user","content":"Which number is larger, 9.11 or 9.8?"*20000}],
+  model="openai/gpt-oss-120b",
+  messages=[{"role":"user","content":"Hey buddy how are you man "*30000}],
   temperature=0.6,
   top_p=0.7,
   max_tokens=8000,

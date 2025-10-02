@@ -1,5 +1,6 @@
 from typing import Any, List, Optional
 from pydantic import BaseModel
+from uuid import UUID
 
 from enums import (
     ChatMessageRoleEnum,
@@ -15,7 +16,7 @@ class ChatMessageModel(BaseModel):
 
 
 class ChatRequestModel(BaseModel):
-    model: CerebrasChatModelEnum | OpenaiChatModelsEnum  = (
+    model: CerebrasChatModelEnum | OpenaiChatModelsEnum = (
         OpenaiChatModelsEnum.SEED_OSS_32B_500K
     )
     messages: List[ChatMessageModel]
@@ -26,6 +27,8 @@ class ChatRequestModel(BaseModel):
     topP: float = 0.9
     seed: int = 42
     method: str = "nvidia"
+    tools: list[dict[Any, Any]] | None = None
+    requestId: UUID | None = None
 
 
 class ChatChoiceMessageModel(BaseModel):
