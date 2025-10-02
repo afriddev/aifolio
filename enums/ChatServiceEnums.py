@@ -38,10 +38,11 @@ class OpenaiChatModelsEnum(Enum):
     LLAMA_235B_110k = ("nvidia/llama-3.1-nemotron-ultra-253b-v1", 110000)
 
     # Reasoning Models
-    QWEN_NEXT_80B_200K = ("qwen/qwen3-next-80b-a3b-thinking", 200000)
-    SEED_OSS_32B_500K = ("bytedance/seed-oss-36b-instruct", 500000)
+    QWEN_NEXT_80B_200K_THINKING = ("qwen/qwen3-next-80b-a3b-thinking", 200000)
+    QWEN_NEXT_80B_250K_INSTRUCT = ("qwen/qwen3-next-80b-a3b-instruct", 250000)
+    SEED_OSS_32B_500K = ("bytedance/seed-oss-36b-instruct", 500000) 
 
-    # Long Context Models
+    # Long Context  
     MISTRAL_NEMOTRON_240K = ("mistralai/mistral-nemotron", 240000)
     LLAMA_51B_100K = ("nvidia/llama-3.1-nemotron-51b-instruct", 110000)
     LLAMA_17B_110K = ("meta/llama-4-maverick-17b-128e-instruct", 110000)
