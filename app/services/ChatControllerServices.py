@@ -18,17 +18,18 @@ class ChatControllerServices(ChatControllerServiceImpl):
 
     async def UploadFile(self, request: FileModel) -> JSONResponse:
         try:
+            fileId = uuid4()
+            request.id = str(fileId)
             text, _ = docService.ExtractTextAndImagesFromPdf(request.data)
             db = mongoClient["documents"]
             collection = db["files"]
-            request.text = text
-            response = collection.insert_one(request.model_dump())
-
+            request.content = text
+            collection.insert_one(request.model_dump())
             return JSONResponse(
                 status_code=200,
                 content={
                     "data": "SUCCESS",
-                    "id": str(response.inserted_id),
+                    "id": str(fileId),
                 },
             )
         except Exception as e:
@@ -107,15 +108,19 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 )
             )
 
-        if len(request.files) > 0:
-            for file in request.files:
-                text, _ = docService.ExtractTextAndImagesFromPdf(file.data)
+        if request.fileId:
+            db = mongoClient["documents"]
+            collection = db["files"]
+            fileData = collection.find_one({"id": request.fileId})
+
+            if fileData:
                 chatMessage.append(
                     ChatMessageModel(
                         role=ChatMessageRoleEnum.USER,
-                        content=text + request.query,
+                        content=fileData.get("content", "") + request.query,
                     )
                 )
+
         else:
             chatMessage.append(
                 ChatMessageModel(
@@ -129,7 +134,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
             modelParams=ChatServiceRequestModel(
                 messages=chatMessage,
                 maxCompletionTokens=20000,
-                model=CerebrasChatModelEnum.GPT_OSS_120B,
+                model=OpenaiChatModelsEnum.SEED_OSS_32B_500K,
                 method="openai",
                 temperature=0.3,
                 topP=0.9,
