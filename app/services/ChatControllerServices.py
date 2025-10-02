@@ -1,10 +1,11 @@
 from app.implementations import ChatControllerServiceImpl
-from app.models import ChatRequestModel
-from fastapi.responses import StreamingResponse
+from app.models import ChatRequestModel, FileModel
+from fastapi.responses import StreamingResponse, JSONResponse
 from models import ChatRequestModel as ChatServiceRequestModel, ChatMessageModel
 from enums import OpenaiChatModelsEnum, ChatMessageRoleEnum
 from services import ChatServices, DocServices
 from app.utils import CHAT_CONTROLLER_CHAT_PROMPT
+from database import mongoClient
 
 
 chatService = ChatServices()
@@ -12,6 +13,20 @@ docService = DocServices()
 
 
 class ChatControllerServices(ChatControllerServiceImpl):
+
+    async def UploadFile(self, request: FileModel):
+        client = await mongoClient.aconnect()
+        db = client["documents"]
+        collection = db["files"]
+        response = await collection.insert_one(request.model_dump())
+        if response.inserted_id:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "message": "File uploaded successfully",
+                    "id": str(response.inserted_id),
+                },
+            )
 
     async def Chat(self, request: ChatRequestModel) -> StreamingResponse:
 
