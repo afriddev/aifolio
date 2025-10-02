@@ -18,9 +18,9 @@ load_dotenv()
 
 class DocServices(DocServicesImpl):
     def ExtractTextAndImagesFromPdf(self, docPath: str) -> Tuple[str, List[str]]:
-        # pdfBytes = base64.b64decode(docPath)
-        # doc: Any = fitz.open(stream=pdfBytes, filetype="pdf")
-        doc: Any = fitz.open(docPath)
+        pdfBytes = base64.b64decode(docPath)
+        doc: Any = fitz.open(stream=pdfBytes, filetype="pdf")
+        # doc: Any = fitz.open(docPath)
         imagesB64: List[str] = []
         imageCounter: int = 1
         finalTextParts: List[str] = []

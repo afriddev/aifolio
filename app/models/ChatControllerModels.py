@@ -3,14 +3,20 @@ from typing import List
 from uuid import UUID
 
 
-class Message(BaseModel):
+class ChatMessageModel(BaseModel):
     role: str
     id: UUID
     reasoningContent: str
     content: str
 
 
-# Main model for the form data
+class FileModel(BaseModel):
+    name: str
+    mediaType: str
+    data: str
+    size: int
+
+
 class ChatRequestModel(BaseModel):
     query: str
     messageId: str
@@ -18,5 +24,5 @@ class ChatRequestModel(BaseModel):
     useWebSearch: bool
     useDeepResearch: bool
     useFlash: bool
-    messages: List[Message]
-    file: bool = False
+    messages: List[ChatMessageModel]
+    files: list[FileModel] = []
