@@ -28,7 +28,7 @@ class ChatRequestModel(BaseModel):
     seed: int = 42
     method: str = "nvidia"
     tools: list[dict[Any, Any]] | None = None
-    requestId: UUID | None = None
+    messageId: str | None = None
 
 
 class ChatChoiceMessageModel(BaseModel):

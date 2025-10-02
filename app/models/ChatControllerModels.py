@@ -15,13 +15,14 @@ class FileModel(BaseModel):
     mediaType: str
     data: str
     size: int
-    content: str | None = None
-    id: str | None = None
+    chatId: str
+    messageId: str
 
 
 class ChatRequestModel(BaseModel):
-    query: str 
     messageId: str
+    chatId: str 
+    query: str
     role: str
     useWebSearch: bool
     useDeepResearch: bool

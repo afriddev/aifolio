@@ -13,6 +13,11 @@ class ChatControllerServiceImpl(ABC):
     @abstractmethod
     async def UploadFile(self, request: FileModel) -> JSONResponse:
         pass
+    
+    @abstractmethod
+    def GetFileContent(self, fileId: str) -> str:
+        pass
+
 
     @abstractmethod
     async def GenerateResumeContent(

@@ -8,7 +8,9 @@ from services import ChatServices, DocServices
 from app.utils import CHAT_CONTROLLER_CHAT_PROMPT
 from database import mongoClient
 from uuid import uuid4
-from app.state import chatDetectedTools, chatCompletionEvents
+from app.schemas import DocumentsFIleSchema
+from app.state import ChatUsedTool, ChatEvent, chatContent, chatReasoning
+from typing import Any
 
 chatService = ChatServices()
 docService = DocServices()
@@ -16,15 +18,113 @@ docService = DocServices()
 
 class ChatControllerServices(ChatControllerServiceImpl):
 
+    async def Chat(self, request: ChatRequestModel) -> StreamingResponse:
+
+        try:
+            fileData = ""
+            if request.fileId:
+                fileData = self.GetFileContent(request.fileId)
+
+            chatMessages: list[ChatMessageModel] = [
+                ChatMessageModel(
+                    role=ChatMessageRoleEnum.SYSTEM,
+                    content=CHAT_CONTROLLER_CHAT_PROMPT,
+                ),
+                *(
+                    ChatMessageModel(
+                        role=(
+                            ChatMessageRoleEnum.USER
+                            if msg.role == "user"
+                            else ChatMessageRoleEnum.ASSISTANT
+                        ),
+                        content=msg.content,
+                    )
+                    for msg in request.messages
+                ),
+                ChatMessageModel(
+                    role=ChatMessageRoleEnum.USER,
+                    content=(
+                        (fileData + "\n\n" + request.query)
+                        if getattr(request, "fileId", None)
+                        else request.query
+                    ),
+                ),
+            ]
+
+            response: Any = await chatService.Chat(
+                modelParams=ChatServiceRequestModel(
+                    messages=chatMessages,
+                    maxCompletionTokens=20000,
+                    model=OpenaiChatModelsEnum.SEED_OSS_32B_500K,
+                    method="openai",
+                    temperature=0.3,
+                    topP=0.9,
+                    stream=True,
+                    tools=[
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": "generate_resume",
+                                "description": "Generate a canonical resume from stored user content (server-side).",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {},
+                                    "required": [],
+                                },
+                            },
+                        }
+                    ],
+                    messageId=request.messageId,
+                )
+            )
+
+            async def CheckForToolExecution():
+                await ChatEvent[request.messageId].wait()
+                # print(chatContent[request.messageId])
+                # print(chatReasoning[request.messageId])
+                # print(ChatUsedTool[request.messageId])
+                if ChatUsedTool[request.messageId]:
+                    await self.GenerateResumeContent(messages=chatMessages)
+                del ChatUsedTool[request.messageId]
+                del ChatEvent[request.messageId]
+
+            asyncio.create_task(CheckForToolExecution())
+
+            return response
+
+        except Exception as e:
+            print(e)
+            return StreamingResponse(
+                iter([b"Sorry, Something went wrong !. Please Try again?"])
+            )
+
+    def GetFileContent(self, fileId: str) -> str:
+        db = mongoClient["documents"]
+        collection = db["files"]
+        fileData = collection.find_one({"id": fileId})
+        if fileData:
+            return fileData.get("content", "")
+        return ""
+
     async def UploadFile(self, request: FileModel) -> JSONResponse:
         try:
             fileId = uuid4()
-            request.id = str(fileId)
             text, _ = docService.ExtractTextAndImagesFromPdf(request.data)
+
+            dbSchema = DocumentsFIleSchema(
+                name=request.name,
+                mediaType=request.mediaType,
+                data=request.data,
+                size=request.size,
+                id=str(fileId),
+                content=text,
+                messageId=request.messageId,
+                chatId=request.chatId,
+            )
+
             db = mongoClient["documents"]
             collection = db["files"]
-            request.content = text
-            collection.insert_one(request.model_dump())
+            collection.insert_one(dbSchema.model_dump())
             return JSONResponse(
                 status_code=200,
                 content={
@@ -66,7 +166,6 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 """,
             )
         )
-
         response = await chatService.Chat(
             modelParams=ChatServiceRequestModel(
                 messages=messages,
@@ -86,84 +185,3 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 },
             )
         )
-        print(response)
-
-    async def Chat(self, request: ChatRequestModel) -> StreamingResponse:
-
-        chatMessage: list[ChatMessageModel] = [
-            ChatMessageModel(
-                role=ChatMessageRoleEnum.SYSTEM,
-                content=CHAT_CONTROLLER_CHAT_PROMPT,
-            )
-        ]
-        for msg in request.messages:
-            chatMessage.append(
-                ChatMessageModel(
-                    role=(
-                        ChatMessageRoleEnum.USER
-                        if msg.role == "user"
-                        else ChatMessageRoleEnum.ASSISTANT
-                    ),
-                    content=msg.content,
-                )
-            )
-
-        if request.fileId:
-            db = mongoClient["documents"]
-            collection = db["files"]
-            fileData = collection.find_one({"id": request.fileId})
-
-            if fileData:
-                chatMessage.append(
-                    ChatMessageModel(
-                        role=ChatMessageRoleEnum.USER,
-                        content=fileData.get("content", "") + request.query,
-                    )
-                )
-
-        else:
-            chatMessage.append(
-                ChatMessageModel(
-                    role=ChatMessageRoleEnum.USER,
-                    content=request.query,
-                )
-            )
-        requestId = uuid4()
-
-        response = await chatService.Chat(
-            modelParams=ChatServiceRequestModel(
-                messages=chatMessage,
-                maxCompletionTokens=20000,
-                model=OpenaiChatModelsEnum.SEED_OSS_32B_500K,
-                method="openai",
-                temperature=0.3,
-                topP=0.9,
-                stream=True,
-                tools=[
-                    {
-                        "type": "function",
-                        "function": {
-                            "name": "generate_resume",
-                            "description": "Generate a canonical resume from stored user content (server-side).",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {},
-                                "required": [],
-                            },
-                        },
-                    }
-                ],
-                requestId=requestId,
-            )
-        )
-
-        async def CheckForToolExecution():
-            await chatCompletionEvents[requestId].wait()
-            if chatDetectedTools[requestId]:
-                await self.GenerateResumeContent(messages=chatMessage)
-            del chatDetectedTools[requestId]
-            del chatCompletionEvents[requestId]
-
-        asyncio.create_task(CheckForToolExecution())
-
-        return response

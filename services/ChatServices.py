@@ -18,7 +18,7 @@ from enums import (
 )
 
 from utils import GetNvidiaURL, GetNvidiaAPIKey
-from app.state import chatDetectedTools, chatCompletionEvents
+from app.state import ChatUsedTool, ChatEvent, chatContent, chatReasoning
 
 
 openAiClient = AsyncOpenAI(base_url="", api_key="")
@@ -93,30 +93,35 @@ class ChatServices(ChatServicesImpl):
                                             toolCalls[0], "function", None
                                         )
                                         toolName = getattr(toolFunction, "name", None)
-                                        if toolName and modelParams.requestId:
-                                            chatDetectedTools[modelParams.requestId] = (
-                                                toolName
-                                            )
+
                                     else:
                                         toolName = None
 
                                     if content:
+                                        chatContent[modelParams.messageId] += content
                                         yield f"data: {json.dumps({'type': 'content', 'data': content})}\n\n"
 
                                     if reasoning:
+                                        chatReasoning[
+                                            modelParams.messageId
+                                        ] += reasoning
                                         yield f"data: {json.dumps({'type': 'reasoning', 'data': reasoning})}\n\n"
 
                                     if toolName:
+                                        ChatUsedTool[modelParams.messageId] = toolName
                                         yield f"data: {json.dumps({'type': 'tool_name', 'data': toolName})}\n\n"
 
                                     if reasoningContent:
+                                        chatReasoning[
+                                            modelParams.messageId
+                                        ] += reasoningContent
                                         yield f"data: {json.dumps({'type': 'reasoning', 'data': reasoningContent})}\n\n"
 
                     except Exception as e:
                         yield f"event: error\ndata: {str(e)}\n\n"
                     finally:
-                        if modelParams.requestId:
-                            chatCompletionEvents[modelParams.requestId].set()
+                        if modelParams.messageId:
+                            ChatEvent[modelParams.messageId].set()
 
                 return StreamingResponse(
                     eventGenerator(),

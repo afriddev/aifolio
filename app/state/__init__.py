@@ -1,3 +1,3 @@
-from .ChatState import chatCompletionEvents,chatDetectedTools
+from .ChatState import ChatEvent,ChatUsedTool,chatContent,chatReasoning
 
-__all__ = ["chatCompletionEvents","chatDetectedTools"]
+__all__ = ["ChatEvent","ChatUsedTool","chatContent","chatReasoning"]

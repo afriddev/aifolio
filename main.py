@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
-from database import psqlDbClient
 from app.controllers import ChatRouter
 
 
