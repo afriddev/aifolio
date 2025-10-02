@@ -84,8 +84,8 @@ Rules:
 8. If you cannot produce a valid summary, produce a fallback descriptive title still meeting the rules.
 
 Examples (input -> response.summary):
-- Input: "Hi"  
-  summary: "Short casual greeting with no follow-up or topic"
+- Input: "Hi","Hello" or greetings 
+  summary: "Casual conversation"
 - Input: "Can you explain the structure of Earth's core?"  
   summary: "Explain Earth's internal structure and core composition"
 - Input: "Help me rewrite my resume for a backend job"  
