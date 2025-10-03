@@ -6,23 +6,23 @@ from app.schemas import ChatMessageSchema, ChatSchema
 
 
 class ChatControllerServiceImpl(ABC):
+    @abstractmethod
+    async def GenerateChatSummary(
+        self,
+        query: str,
+        id: str,
+        emailId: str,
+        messagesLength: int,
+        retryLimit: int,
+    ) -> None:
+        pass
 
     @abstractmethod
     async def Chat(self, request: ChatRequestModel) -> StreamingResponse:
         pass
 
     @abstractmethod
-    async def UploadFile(self, request: FileModel, retryLimit: int) -> JSONResponse:
-        pass
-
-    @abstractmethod
-    def GetFileContent(self, fileId: str) -> str:
-        pass
-
-    @abstractmethod
-    async def GenerateChatSummary(
-        self, query: str, id: str, emailId: str, retryLimit: int
-    ) -> None:
+    def SaveChatMessage(self, request: ChatMessageSchema, retryLimit: int) -> None:
         pass
 
     @abstractmethod
@@ -30,7 +30,19 @@ class ChatControllerServiceImpl(ABC):
         pass
 
     @abstractmethod
-    def SaveChatMessage(self, request: ChatMessageSchema, retryLimit: int) -> None:
+    def GetFileContent(self, fileId: str) -> str:
+        pass
+
+    @abstractmethod
+    def GetAllChats(self) -> JSONResponse:
+        pass
+
+    @abstractmethod
+    def getChatHistory(self, id: str) -> JSONResponse:
+        pass
+
+    @abstractmethod
+    async def UploadFile(self, request: FileModel, retryLimit: int) -> JSONResponse:
         pass
 
     @abstractmethod

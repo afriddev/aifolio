@@ -27,7 +27,12 @@ db = mongoClient["aifolio"]
 class ChatControllerServices(ChatControllerServiceImpl):
 
     async def GenerateChatSummary(
-        self, query: str, id: str, emailId: str, retryLimit: int = 0
+        self,
+        query: str,
+        id: str,
+        emailId: str,
+        messagesLength: int,
+        retryLimit: int = 0,
     ) -> None:
         if retryLimit >= 3:
             return
@@ -46,17 +51,18 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 modelParams=ChatServiceRequestModel(
                     messages=messages,
                     maxCompletionTokens=500,
-                    model=CerebrasChatModelEnum.LLAMA_70B,
+                    model=CerebrasChatModelEnum.META_LLAMA_108B_INSTRUCT,
                     method="cerebras",
-                    temperature=0.2,
+                    temperature=0.5,
                     topP=0.9,
                     stream=False,
                     responseFormat={
                         "type": "object",
                         "properties": {
                             "summary": {"type": "string"},
+                            "generated": {"type": "string", "enum": ["true", "false"]},
                         },
-                        "required": ["summary"],
+                        "required": ["summary", "generated"],
                         "additionalProperties": False,
                     },
                 )
@@ -66,23 +72,45 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 try:
                     chatResponse = json.loads(response.content)
                 except Exception as e:
-                    await self.GenerateChatSummary(query, id, emailId, retryLimit + 1)
-            summary = chatResponse.get("response").get("summary", "")
-            await webSocket.sendToUser(
-                email=emailId,
-                message=json.dumps(
-                    {"type": "chatSummary", "title": summary, "chatId": id}
-                ),
-            )
-            print(summary)
-            if summary:
+                    await self.GenerateChatSummary(
+                        query, id, emailId, messagesLength, retryLimit + 1
+                    )
+            title = chatResponse.get("response").get("summary", "")
+            generated = chatResponse.get("response").get("generated", "")
+            titleGenerated = generated == "true"
+
+            if title:
                 self.SaveChat(
-                    request=ChatSchema(id=id, summary=summary, emailId=emailId)
+                    request=ChatSchema(
+                        id=id,
+                        title=title,
+                        emailId=emailId,
+                        titleGenerated=titleGenerated,
+                    )
+                )
+
+            if messagesLength == 0 or titleGenerated:
+                await webSocket.sendToUser(
+                    email=emailId,
+                    message=json.dumps(
+                        {
+                            "type": (
+                                "chatSummary"
+                                if messagesLength == 0
+                                else "chatSummaryUpdate"
+                            ),
+                            "title": title,
+                            "chatId": id,
+                            "titleGenerated": titleGenerated,
+                        }
+                    ),
                 )
 
         except Exception as e:
             print(e)
-            await self.GenerateChatSummary(query, id, emailId, retryLimit + 1)
+            await self.GenerateChatSummary(
+                query, id, emailId, messagesLength, retryLimit + 1
+            )
 
     async def Chat(self, request: ChatRequestModel) -> StreamingResponse:
 
@@ -91,10 +119,13 @@ class ChatControllerServices(ChatControllerServiceImpl):
             if request.fileId:
                 fileData = self.GetFileContent(request.fileId)
 
-            if len(request.messages) == 0:
+            if request.titleGenerated is False:
                 asyncio.create_task(
                     self.GenerateChatSummary(
-                        query=request.query, id=request.chatId, emailId=request.emailId
+                        query=request.query,
+                        id=request.chatId,
+                        emailId=request.emailId,
+                        messagesLength=len(request.messages),
                     )
                 )
 
@@ -127,11 +158,11 @@ class ChatControllerServices(ChatControllerServiceImpl):
             response: Any = await chatService.Chat(
                 modelParams=ChatServiceRequestModel(
                     messages=chatMessages,
-                    maxCompletionTokens=5000,
-                    model=OpenaiChatModelsEnum.SEED_OSS_32B_500K,
+                    maxCompletionTokens=20000,
+                    model=OpenaiChatModelsEnum.GPT_OSS_120B_110K,
                     method="openai",
-                    temperature=0.4,
-                    topP=1.0,
+                    temperature=0.5,
+                    topP=0.9,
                     stream=True,
                     tools=[
                         {
@@ -196,10 +227,16 @@ class ChatControllerServices(ChatControllerServiceImpl):
             print(e)
             self.SaveChatMessage(request, retryLimit + 1) if retryLimit < 3 else None
 
-    def SaveChat(self, request: ChatSchema, retryLimit: int = 0) -> None:
+    def SaveChat(
+        self,
+        request: ChatSchema,
+        retryLimit: int = 0,
+    ) -> None:
         try:
             collection = db["chats"]
-            collection.insert_one(request.model_dump())
+            collection.update_one(
+                {"id": request.id}, {"$set": request.model_dump()}, upsert=True
+            )
         except Exception as e:
             print(e)
             self.SaveChat(request, retryLimit + 1) if retryLimit < 3 else None
@@ -218,7 +255,11 @@ class ChatControllerServices(ChatControllerServiceImpl):
             tempAllChats: list[dict[str, str]] = []
             for chat in chats:
                 tempAllChats.append(
-                    {"id": chat.get("id", ""), "title": chat.get("summary", "")}
+                    {
+                        "id": chat.get("id", ""),
+                        "title": chat.get("title", ""),
+                        "titleGenerated": chat.get("titleGenerated", False),
+                    }
                 )
             return JSONResponse(
                 status_code=200,

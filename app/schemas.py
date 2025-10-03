@@ -24,8 +24,9 @@ class DocumentsFileSchema(TimeStampedModel):
 
 class ChatSchema(TimeStampedModel):
     id: str
-    summary: str
+    title: str
     emailId: str
+    titleGenerated: bool = False
 
 
 class ChatMessageSchema(TimeStampedModel):

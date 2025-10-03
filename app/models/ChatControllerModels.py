@@ -21,7 +21,7 @@ class FileModel(BaseModel):
 
 class ChatRequestModel(BaseModel):
     messageId: str
-    chatId: str 
+    chatId: str
     query: str
     role: str
     useWebSearch: bool
@@ -29,4 +29,5 @@ class ChatRequestModel(BaseModel):
     useFlash: bool
     messages: List[ChatMessageModel]
     fileId: str | None = None
-    emailId:str
+    emailId: str
+    titleGenerated: bool | None = False
