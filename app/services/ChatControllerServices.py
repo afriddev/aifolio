@@ -154,17 +154,25 @@ class ChatControllerServices(ChatControllerServiceImpl):
             async def CheckForToolExecution():
                 await ChatEvent[request.messageId].wait()
 
-                tempChatMessageSchema = ChatMessageSchema(
-                    id=request.messageId,
-                    emailId=request.emailId,
+                tempAssistentChatMessage = ChatMessageSchema(
+                    id=str(uuid4()),
                     chatId=request.chatId,
                     role=ChatMessageRoleEnum.ASSISTANT.value,
                     content=chatContent[request.messageId],
                     reasoning=chatReasoning[request.messageId],
                     toolName=ChatUsedTool[request.messageId],
-                    fileId=request.fileId,
                 )
-                self.SaveChatMessage(tempChatMessageSchema)
+
+                tempUserChatMessage = ChatMessageSchema(
+                    id=request.messageId,
+                    emailId=request.emailId,
+                    chatId=request.chatId,
+                    role=ChatMessageRoleEnum.USER.value,
+                    content=request.query,
+                )
+
+                self.SaveChatMessage(tempUserChatMessage)
+                self.SaveChatMessage(tempAssistentChatMessage)
                 if ChatUsedTool[request.messageId]:
                     await self.GenerateResumeContent(messages=chatMessages)
                 del ChatUsedTool[request.messageId]
@@ -206,7 +214,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
     def GetAllChats(self) -> JSONResponse:
         try:
             collection = db["chats"]
-            chats = list(collection.find({}))
+            chats = list(collection.find({}).sort("createdAt", -1))
             tempAllChats: list[dict[str, str]] = []
             for chat in chats:
                 tempAllChats.append(
@@ -215,6 +223,33 @@ class ChatControllerServices(ChatControllerServiceImpl):
             return JSONResponse(
                 status_code=200,
                 content={"data": "SUCCESS", "allChats": tempAllChats},
+            )
+        except Exception as e:
+            print(e)
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "data": "ERROR",
+                    "error": str(e),
+                },
+            )
+
+    def getChatHistory(self, id: str) -> JSONResponse:
+        try:
+            collection = db["chatMessages"]
+            chats = list(collection.find({"chatId": id}))
+            tempChatHistory: list[dict[str, str]] = []
+            for chat in chats:
+                tempChatHistory.append(
+                    {
+                        "id": chat.get("id", ""),
+                        "role": chat.get("role", "").lower(),
+                        "content": chat.get("content", ""),
+                    }
+                )
+            return JSONResponse(
+                status_code=200,
+                content={"data": "SUCCESS", "chatHistory": tempChatHistory},
             )
         except Exception as e:
             print(e)

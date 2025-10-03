@@ -7,18 +7,18 @@ from app import webSocket
 from fastapi import WebSocket,WebSocketDisconnect
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # asyncio.create_task(psqlDbClient.connect())
-    yield
-    try:
-        print("")
-        # await asyncio.wait_for(psqlDbClient.close(), timeout=3)
-    except asyncio.TimeoutError:
-        print("⚠️ DB close timed out")
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     # asyncio.create_task(psqlDbClient.connect())
+#     yield
+#     try:
+#         print("")
+#         # await asyncio.wait_for(psqlDbClient.close(), timeout=3)
+#     except asyncio.TimeoutError:
+#         print("⚠️ DB close timed out")
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,

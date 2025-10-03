@@ -30,7 +30,7 @@ class ChatSchema(TimeStampedModel):
 
 class ChatMessageSchema(TimeStampedModel):
     id: str
-    emailId: str
+    emailId: str | None = None
     chatId: str
     role: str
     content: str | None = None

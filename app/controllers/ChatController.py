@@ -21,3 +21,9 @@ async def upload(request: FileModel):
 @ChatRouter.get("/allchats")
 async def allChats():
     return chatService.GetAllChats()
+
+@ChatRouter.get("/chatistory/{id}")
+async def chatHistory(id:str):
+    return chatService.getChatHistory(id)
+
+

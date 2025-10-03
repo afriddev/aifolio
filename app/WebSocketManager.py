@@ -24,7 +24,7 @@ class WebSocketManager(WebSocketManagerImpl):
     async def connect(self, websocket: WebSocket, email: str):
         await websocket.accept()
         self.active[email] = websocket
-        print(f"✅ {email} connected")
+        # print(f"✅ {email} connected")
 
     def disconnect(self, email: str):
         if email in self.active:
