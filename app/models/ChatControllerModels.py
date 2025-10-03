@@ -6,7 +6,7 @@ from uuid import UUID
 class ChatMessageModel(BaseModel):
     role: str
     id: UUID
-    reasoningContent: str
+    reasoningContent: str | None = None
     content: str
 
 

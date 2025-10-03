@@ -11,8 +11,11 @@ from models import (
     ChatRequestModel,
     ChatResponseModel,
     ChatUsageModel,
+    ChatMessageModel,
 )
+from enums import ChatMessageRoleEnum
 from cerebras.cloud.sdk import AsyncCerebras
+from utils import DEFAULT_SYSTEM_PROMPT
 
 from enums import (
     ChatResponseStatusEnum,
@@ -35,6 +38,14 @@ class ChatServices(ChatServicesImpl):
             openAiClient.api_key = GetNvidiaAPIKey()
         elif modelParams.method == "cerebras":
             cerebrasClient.api_key = GetCerebrasAPIKey()
+
+        messages = modelParams.messages
+        messages.insert(
+            0,
+            ChatMessageModel(
+                role=ChatMessageRoleEnum.SYSTEM, content=DEFAULT_SYSTEM_PROMPT
+            ),
+        )
 
         createCall = client.chat.completions.create(
             messages=cast(Any, modelParams.messages),

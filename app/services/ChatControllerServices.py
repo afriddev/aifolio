@@ -127,11 +127,11 @@ class ChatControllerServices(ChatControllerServiceImpl):
             response: Any = await chatService.Chat(
                 modelParams=ChatServiceRequestModel(
                     messages=chatMessages,
-                    maxCompletionTokens=20000,
-                    model=OpenaiChatModelsEnum.GPT_OSS_120B_110K,
+                    maxCompletionTokens=5000,
+                    model=OpenaiChatModelsEnum.SEED_OSS_32B_500K,
                     method="openai",
-                    temperature=0.3,
-                    topP=0.9,
+                    temperature=0.4,
+                    topP=1.0,
                     stream=True,
                     tools=[
                         {
