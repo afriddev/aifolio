@@ -79,15 +79,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
             generated = chatResponse.get("response").get("generated", "")
             titleGenerated = generated == "true"
 
-            if title:
-                self.SaveChat(
-                    request=ChatSchema(
-                        id=id,
-                        title=title,
-                        emailId=emailId,
-                        titleGenerated=titleGenerated,
-                    )
-                )
+            
 
             if messagesLength == 0 or titleGenerated:
                 await webSocket.sendToUser(
@@ -104,6 +96,15 @@ class ChatControllerServices(ChatControllerServiceImpl):
                             "titleGenerated": titleGenerated,
                         }
                     ),
+                )
+            if title:
+                self.SaveChat(
+                    request=ChatSchema(
+                        id=id,
+                        title=title,
+                        emailId=emailId,
+                        titleGenerated=titleGenerated,
+                    )
                 )
 
         except Exception as e:
@@ -159,7 +160,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 modelParams=ChatServiceRequestModel(
                     messages=chatMessages,
                     maxCompletionTokens=20000,
-                    model=OpenaiChatModelsEnum.GPT_OSS_120B_110K,
+                    model=OpenaiChatModelsEnum.SEED_OSS_32B_500K,
                     method="openai",
                     temperature=0.5,
                     topP=0.9,
