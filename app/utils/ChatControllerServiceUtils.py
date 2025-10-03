@@ -72,20 +72,20 @@ Rules:
 1. Output exactly one JSON object and nothing else. No commentary, no extra keys.
 2. Put the short, natural-language chat title in response.summary.
 3. The summary must be a natural, helpful title that describes the user's query for indexing/search.
-4. Word count: the summary MUST contain between 7 and 12 words (inclusive).
-   - If the user's text is too short or trivial (e.g., "hi"), expand to a concise descriptive title that still fits the 7–12 word window.
+4. Word count: the summary MUST contain between 2 and 12 words (inclusive).
+   - If the user's text is too short or trivial (e.g., "hi"), expand to a concise descriptive title that still fits the 2–12 word window.
 5. Style:
    - Use normal sentence-case (capitalize first word only), avoid ALL-CAPS.
    - Do not include punctuation at the end (no trailing period).
    - No emojis, no markup, no internal labels like "user says" or "greeting hello".
    - No quotes inside the summary string.
 6. Keep it concrete and specific. Prefer descriptive phrases over bare keywords.
-7. If the user asks a multi-part question, summarize the main intent in one title (still 7–12 words).
+7. If the user asks a multi-part question, summarize the main intent in one title (still 2–12 words).
 8. If you cannot produce a valid summary, produce a fallback descriptive title still meeting the rules.
 
 Examples (input -> response.summary):
 - Input: "Hi","Hello" or greetings 
-  summary: "Casual conversation"
+  summary: "Casual conversation started"
 - Input: "Can you explain the structure of Earth's core?"  
   summary: "Explain Earth's internal structure and core composition"
 - Input: "Help me rewrite my resume for a backend job"  

@@ -3,6 +3,8 @@ from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 from app.controllers import ChatRouter
+from app import webSocket
+from fastapi import WebSocket,WebSocketDisconnect
 
 
 @asynccontextmanager
@@ -26,6 +28,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(ChatRouter, prefix="/api/v1")
+
+
+@app.websocket("/ws/{email}")
+async def websocket_endpoint(websocket: WebSocket, email: str):
+    await webSocket.connect(websocket, email)
+    try:
+        while True:
+            await asyncio.sleep(10) 
+    except WebSocketDisconnect:
+        webSocket.disconnect(email)
+
 
 
 if __name__ == "__main__":

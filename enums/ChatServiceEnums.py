@@ -24,11 +24,10 @@ class ChatResponseStatusEnum(Enum):
 
 class CerebrasChatModelEnum(Enum):
     GPT_OSS_120B = ("gpt-oss-120b", 60000, False)
-    QWEN_235B = ("qwen-3-235b-a22b-instruct-2507", 60000, True)
-    QWEN_235B_THINKING = ("qwen-3-235b-a22b-thinking-2507", 60000, True)
+    META_LLAMA_108B_INSTRUCT = ("llama-4-scout-17b-16e-instruct", 6000, True)
     LLAMA_70B = ("llama-3.3-70b", 60000, True)
     QWEN_32B = ("qwen-3-32b", 60000, True)
-    META_LLAMA_17B_MAVERICK = ("llama-4-maverick-17b-128e-instruct", 6000, True)
+
 
 
 class OpenaiChatModelsEnum(Enum):
@@ -38,14 +37,20 @@ class OpenaiChatModelsEnum(Enum):
     LLAMA_235B_110k = ("nvidia/llama-3.1-nemotron-ultra-253b-v1", 110000)
 
     # Reasoning Models
+    GPT_OSS_120B_110K = ("openai/gpt-oss-120b", 110000)
     QWEN_NEXT_80B_200K_THINKING = ("qwen/qwen3-next-80b-a3b-thinking", 200000)
-    QWEN_NEXT_80B_250K_INSTRUCT = ("qwen/qwen3-next-80b-a3b-instruct", 250000)
     SEED_OSS_32B_500K = ("bytedance/seed-oss-36b-instruct", 500000) 
 
-    # Long Context  
-    MISTRAL_NEMOTRON_240K = ("mistralai/mistral-nemotron", 240000)
-    LLAMA_51B_100K = ("nvidia/llama-3.1-nemotron-51b-instruct", 110000)
-    GPT_OSS_120B_110K = ("openai/gpt-oss-120b", 110000)
+    # Normal Models
     LLAMA_17B_110K = ("meta/llama-4-maverick-17b-128e-instruct", 110000)
+    QWEN_NEXT_80B_250K_INSTRUCT = ("qwen/qwen3-next-80b-a3b-instruct", 250000)
+    MISTRAL_NEMOTRON_240K = ("mistralai/mistral-nemotron", 240000)
     JAMBA_50B_200K = ("ai21labs/jamba-1.5-mini-instruct", 200000)
+
+
+
+
+
+    # Long Context  
+    # LLAMA_51B_100K = ("nvidia/llama-3.1-nemotron-51b-instruct", 110000)
 

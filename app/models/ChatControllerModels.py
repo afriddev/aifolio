@@ -29,3 +29,4 @@ class ChatRequestModel(BaseModel):
     useFlash: bool
     messages: List[ChatMessageModel]
     fileId: str | None = None
+    emailId:str

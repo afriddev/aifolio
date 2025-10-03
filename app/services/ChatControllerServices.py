@@ -12,9 +12,10 @@ from app.utils import (
 )
 from database import mongoClient
 from uuid import uuid4
-from app.schemas import DocumentsFIleSchema
+from app.schemas import DocumentsFileSchema, ChatMessageSchema, ChatSchema
 from app.state import ChatUsedTool, ChatEvent, chatContent, chatReasoning
 from typing import Any
+import json
 
 chatService = ChatServices()
 docService = DocServices()
@@ -23,7 +24,11 @@ db = mongoClient["aifolio"]
 
 class ChatControllerServices(ChatControllerServiceImpl):
 
-    async def GenerateChatSummary(self, query: str):
+    async def GenerateChatSummary(
+        self, query: str, id: str, emailId: str, retryLimit: int = 0
+    ) -> None:
+        if retryLimit >= 3:
+            return
         messages: list[ChatMessageModel] = [
             ChatMessageModel(
                 role=ChatMessageRoleEnum.SYSTEM,
@@ -34,26 +39,42 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 content=query,
             ),
         ]
-        response = await chatService.Chat(
-            modelParams=ChatServiceRequestModel(
-                messages=messages,
-                maxCompletionTokens=500,
-                model=CerebrasChatModelEnum.META_LLAMA_17B_MAVERICK,
-                method="cerebras",
-                temperature=0.7,
-                topP=0.9,
-                stream=False,
-                responseFormat={
-                    "type": "object",
-                    "properties": {
-                        "summary": {"type": "string"},
+        try:
+            response: Any = await chatService.Chat(
+                modelParams=ChatServiceRequestModel(
+                    messages=messages,
+                    maxCompletionTokens=500,
+                    model=CerebrasChatModelEnum.LLAMA_70B,
+                    method="cerebras",
+                    temperature=0.2,
+                    topP=0.9,
+                    stream=False,
+                    responseFormat={
+                        "type": "object",
+                        "properties": {
+                            "summary": {"type": "string"},
+                        },
+                        "required": ["summary"],
+                        "additionalProperties": False,
                     },
-                    "required": ["summary"],
-                    "additionalProperties": False,
-                },
+                )
             )
-        )
-        print(response)
+            chatResponse: dict[str, Any] = {}
+            if response.content:
+                try:
+                    chatResponse = json.loads(response.content)
+                except Exception as e:
+                    await self.GenerateChatSummary(query, id, emailId, retryLimit + 1)
+            summary = chatResponse.get("response").get("summary", "")
+            print(summary)
+            if summary:
+                self.SaveChat(
+                    request=ChatSchema(id=id, summary=summary, emailId=emailId)
+                )
+
+        except Exception as e:
+            print(e)
+            await self.GenerateChatSummary(query, id, emailId, retryLimit + 1)
 
     async def Chat(self, request: ChatRequestModel) -> StreamingResponse:
 
@@ -63,7 +84,11 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 fileData = self.GetFileContent(request.fileId)
 
             if len(request.messages) == 0:
-                asyncio.create_task(self.GenerateChatSummary(request.query))
+                asyncio.create_task(
+                    self.GenerateChatSummary(
+                        query=request.query, id=request.chatId, emailId=request.emailId
+                    )
+                )
 
             chatMessages: list[ChatMessageModel] = [
                 ChatMessageModel(
@@ -95,7 +120,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 modelParams=ChatServiceRequestModel(
                     messages=chatMessages,
                     maxCompletionTokens=20000,
-                    model=OpenaiChatModelsEnum.SEED_OSS_32B_500K,
+                    model=OpenaiChatModelsEnum.GPT_OSS_120B_110K,
                     method="openai",
                     temperature=0.3,
                     topP=0.9,
@@ -120,9 +145,18 @@ class ChatControllerServices(ChatControllerServiceImpl):
 
             async def CheckForToolExecution():
                 await ChatEvent[request.messageId].wait()
-                # print(chatContent[request.messageId])
-                # print(chatReasoning[request.messageId])
-                # print(ChatUsedTool[request.messageId])
+
+                tempChatMessageSchema = ChatMessageSchema(
+                    id=request.messageId,
+                    emailId=request.emailId,
+                    chatId=request.chatId,
+                    role=ChatMessageRoleEnum.ASSISTANT.value,
+                    content=chatContent[request.messageId],
+                    reasoning=chatReasoning[request.messageId],
+                    toolName=ChatUsedTool[request.messageId],
+                    fileId=request.fileId,
+                )
+                self.SaveChatMessage(tempChatMessageSchema)
                 if ChatUsedTool[request.messageId]:
                     await self.GenerateResumeContent(messages=chatMessages)
                 del ChatUsedTool[request.messageId]
@@ -138,6 +172,22 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 iter([b"Sorry, Something went wrong !. Please Try again?"])
             )
 
+    def SaveChatMessage(self, request: ChatMessageSchema, retryLimit: int = 0) -> None:
+        try:
+            collection = db["chatMessages"]
+            collection.insert_one(request.model_dump())
+        except Exception as e:
+            print(e)
+            self.SaveChatMessage(request, retryLimit + 1) if retryLimit < 3 else None
+
+    def SaveChat(self, request: ChatSchema, retryLimit: int = 0) -> None:
+        try:
+            collection = db["chats"]
+            collection.insert_one(request.model_dump())
+        except Exception as e:
+            print(e)
+            self.SaveChat(request, retryLimit + 1) if retryLimit < 3 else None
+
     def GetFileContent(self, fileId: str) -> str:
         collection = db["files"]
         fileData = collection.find_one({"id": fileId})
@@ -145,12 +195,12 @@ class ChatControllerServices(ChatControllerServiceImpl):
             return fileData.get("content", "")
         return ""
 
-    async def UploadFile(self, request: FileModel) -> JSONResponse:
+    async def UploadFile(self, request: FileModel, retryLimit: int = 0) -> JSONResponse:
         try:
             fileId = uuid4()
             text, _ = docService.ExtractTextAndImagesFromPdf(request.data)
 
-            dbSchema = DocumentsFIleSchema(
+            dbSchema = DocumentsFileSchema(
                 name=request.name,
                 mediaType=request.mediaType,
                 data=request.data,
@@ -171,6 +221,9 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 },
             )
         except Exception as e:
+            print(e)
+            if retryLimit < 3:
+                return await self.UploadFile(request, retryLimit + 1)
             return JSONResponse(
                 status_code=500,
                 content={
@@ -190,10 +243,10 @@ class ChatControllerServices(ChatControllerServiceImpl):
         response = await chatService.Chat(
             modelParams=ChatServiceRequestModel(
                 messages=messages,
-                maxCompletionTokens=20000,
-                model=CerebrasChatModelEnum.QWEN_235B,
+                maxCompletionTokens=8000,
+                model=CerebrasChatModelEnum.GPT_OSS_120B,
                 method="cerebras",
-                temperature=0.0,
+                temperature=0.1,
                 topP=0.9,
                 stream=False,
                 responseFormat={
