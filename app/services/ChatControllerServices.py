@@ -16,6 +16,8 @@ from app.schemas import DocumentsFileSchema, ChatMessageSchema, ChatSchema
 from app.state import ChatUsedTool, ChatEvent, chatContent, chatReasoning
 from typing import Any
 import json
+from app.WebSocketManager import webSocket
+
 
 chatService = ChatServices()
 docService = DocServices()
@@ -66,6 +68,12 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 except Exception as e:
                     await self.GenerateChatSummary(query, id, emailId, retryLimit + 1)
             summary = chatResponse.get("response").get("summary", "")
+            await webSocket.sendToUser(
+                email=emailId,
+                message=json.dumps(
+                    {"type": "chatSummary", "title": summary, "chatId": id}
+                ),
+            )
             print(summary)
             if summary:
                 self.SaveChat(
@@ -194,6 +202,29 @@ class ChatControllerServices(ChatControllerServiceImpl):
         if fileData:
             return fileData.get("content", "")
         return ""
+
+    def GetAllChats(self) -> JSONResponse:
+        try:
+            collection = db["chats"]
+            chats = list(collection.find({}))
+            tempAllChats: list[dict[str, str]] = []
+            for chat in chats:
+                tempAllChats.append(
+                    {"id": chat.get("id", ""), "title": chat.get("summary", "")}
+                )
+            return JSONResponse(
+                status_code=200,
+                content={"data": "SUCCESS", "allChats": tempAllChats},
+            )
+        except Exception as e:
+            print(e)
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "data": "ERROR",
+                    "error": str(e),
+                },
+            )
 
     async def UploadFile(self, request: FileModel, retryLimit: int = 0) -> JSONResponse:
         try:
