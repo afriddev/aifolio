@@ -51,7 +51,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 modelParams=ChatServiceRequestModel(
                     messages=messages,
                     maxCompletionTokens=500,
-                    model=CerebrasChatModelEnum.LLAMA_70B,
+                    model=CerebrasChatModelEnum.META_LLAMA_108B_INSTRUCT,
                     method="cerebras",
                     temperature=0.5,
                     topP=0.9,
