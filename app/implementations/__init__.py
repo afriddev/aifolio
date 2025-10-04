@@ -1,4 +1,5 @@
 from .ChatControllerServiceImpl import ChatControllerServiceImpl
+from .EmailServiceImpl import EmailServiceImpl
 
 
-__all__ = ["ChatControllerServiceImpl"]
+__all__ = ["ChatControllerServiceImpl", "EmailServiceImpl"]

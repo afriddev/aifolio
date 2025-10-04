@@ -158,9 +158,9 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 modelParams=ChatServiceRequestModel(
                     messages=chatMessages,
                     maxCompletionTokens=20000,
-                    model=OpenaiChatModelsEnum.GPT_OSS_120B_110K,
+                    model=OpenaiChatModelsEnum.SEED_OSS_32B_500K,
                     method="openai",
-                    temperature=0.5,
+                    temperature=0.2,
                     topP=0.9,
                     stream=True,
                     tools=[
@@ -276,10 +276,13 @@ class ChatControllerServices(ChatControllerServiceImpl):
 
     def getChatHistory(self, id: str) -> JSONResponse:
         try:
-            collection = db["chatMessages"]
-            chats = list(collection.find({"chatId": id}))
+            chatMessageCollection = db["chatMessages"]
+            chatCollection = db["chats"]
+            chatDetails = chatCollection.find_one({"id": id})
+
+            chatsMessages = list(chatMessageCollection.find({"chatId": id}))
             tempChatHistory: list[dict[str, str]] = []
-            for chat in chats:
+            for chat in chatsMessages:
                 tempChatHistory.append(
                     {
                         "id": chat.get("id", ""),
@@ -289,7 +292,13 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 )
             return JSONResponse(
                 status_code=200,
-                content={"data": "SUCCESS", "chatHistory": tempChatHistory},
+                content={
+                    "data": "SUCCESS",
+                    "chatHistory": tempChatHistory,
+                    "titleGenerated": (
+                        chatDetails.get("titleGenerated", False)
+                    )
+                },
             )
         except Exception as e:
             print(e)
@@ -380,9 +389,12 @@ class ChatControllerServices(ChatControllerServiceImpl):
                     "type": "object",
                     "properties": {
                         "summary": {"type": "string"},
+                        "shortDescription": {"type": "string"},
+
                     },
-                    "required": ["summary"],
+                    "required": ["summary", "shortDescription"],
                     "additionalProperties": False,
                 },
             )
         )
+        print(response.content)
