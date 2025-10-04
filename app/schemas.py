@@ -38,3 +38,4 @@ class ChatMessageSchema(TimeStampedModel):
     fileId: str | None = None
     reasoning: str | None = None
     toolName: str | None = None
+    visible: bool = True

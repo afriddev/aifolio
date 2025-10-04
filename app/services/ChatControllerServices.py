@@ -7,7 +7,7 @@ from enums import OpenaiChatModelsEnum, ChatMessageRoleEnum, CerebrasChatModelEn
 from services import ChatServices, DocServices
 from app.utils import (
     CHAT_CONTROLLER_CHAT_PROMPT,
-    GENERATE_RESUME_PROMPT,
+    GENERATE_CONTENT_PROMPT,
     CHAT_SUMMARY_PROMPT,
 )
 from database import mongoClient
@@ -51,7 +51,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 modelParams=ChatServiceRequestModel(
                     messages=messages,
                     maxCompletionTokens=500,
-                    model=CerebrasChatModelEnum.META_LLAMA_108B_INSTRUCT,
+                    model=CerebrasChatModelEnum.LLAMA_70B,
                     method="cerebras",
                     temperature=0.5,
                     topP=0.9,
@@ -77,24 +77,24 @@ class ChatControllerServices(ChatControllerServiceImpl):
                     )
             title = chatResponse.get("response").get("summary", "")
             generated = chatResponse.get("response").get("generated", "")
+            print(f"title: {title}, generated: {generated}")
             titleGenerated = generated == "true"
 
-            if messagesLength == 0 or titleGenerated:
-                await webSocket.sendToUser(
-                    email=emailId,
-                    message=json.dumps(
-                        {
-                            "type": (
-                                "chatSummary"
-                                if messagesLength == 0
-                                else "chatSummaryUpdate"
-                            ),
-                            "title": title,
-                            "chatId": id,
-                            "titleGenerated": titleGenerated,
-                        }
-                    ),
-                )
+            await webSocket.sendToUser(
+                email=emailId,
+                message=json.dumps(
+                    {
+                        "type": (
+                            "chatSummary"
+                            if messagesLength == 0
+                            else "chatSummaryUpdate"
+                        ),
+                        "title": title,
+                        "chatId": id,
+                        "titleGenerated": titleGenerated,
+                    }
+                ),
+            )
             if title:
                 self.SaveChat(
                     request=ChatSchema(
@@ -115,8 +115,8 @@ class ChatControllerServices(ChatControllerServiceImpl):
 
         try:
             fileData = ""
-            if request.fileId:
-                fileData = self.GetFileContent(request.fileId)
+            # if request.fileId:
+            #     fileData = self.GetFileContent(request.fileId)
 
             if request.titleGenerated is False:
                 asyncio.create_task(
@@ -146,11 +146,12 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 ),
                 ChatMessageModel(
                     role=ChatMessageRoleEnum.USER,
-                    content=(
-                        (fileData + "\n\n" + request.query)
-                        if getattr(request, "fileId", None)
-                        else request.query
-                    ),
+                    # content=(
+                    #     (fileData + "\n\n" + request.query)
+                    #     if getattr(request, "fileId", None)
+                    #     else request.query
+                    # ),
+                    content=(request.query),
                 ),
             ]
 
@@ -160,15 +161,15 @@ class ChatControllerServices(ChatControllerServiceImpl):
                     maxCompletionTokens=20000,
                     model=OpenaiChatModelsEnum.SEED_OSS_32B_500K,
                     method="openai",
-                    temperature=0.2,
+                    temperature=0.3,
                     topP=0.9,
                     stream=True,
                     tools=[
                         {
                             "type": "function",
                             "function": {
-                                "name": "generate_resume",
-                                "description": "Generate a canonical resume from stored user content (server-side).",
+                                "name": "generatekey",
+                                "description": "Generate a key based on user information if provided.",
                                 "parameters": {
                                     "type": "object",
                                     "properties": {},
@@ -204,6 +205,14 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 self.SaveChatMessage(tempUserChatMessage)
                 self.SaveChatMessage(tempAssistentChatMessage)
                 if ChatUsedTool[request.messageId]:
+                    tempToolChatMessage = ChatMessageSchema(
+                        id=str(uuid4()),
+                        emailId=request.emailId,
+                        chatId=request.chatId,
+                        role=ChatMessageRoleEnum.ASSISTANT.value,
+                        content="Generated your key, you will get the key by email.",
+                    )
+                    self.SaveChatMessage(tempToolChatMessage)
                     await self.GenerateResumeContent(messages=chatMessages)
                 del ChatUsedTool[request.messageId]
                 del ChatEvent[request.messageId]
@@ -288,6 +297,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                         "id": chat.get("id", ""),
                         "role": chat.get("role", "").lower(),
                         "content": chat.get("content", ""),
+                        "visible": chat.get("visible", ""),
                     }
                 )
             return JSONResponse(
@@ -295,9 +305,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 content={
                     "data": "SUCCESS",
                     "chatHistory": tempChatHistory,
-                    "titleGenerated": (
-                        chatDetails.get("titleGenerated", False)
-                    )
+                    "titleGenerated": (chatDetails.get("titleGenerated", False)),
                 },
             )
         except Exception as e:
@@ -348,13 +356,21 @@ class ChatControllerServices(ChatControllerServiceImpl):
             )
 
             collection = db["files"]
+            self.SaveChatMessage(
+                request=ChatMessageSchema(
+                    id=request.messageId,
+                    chatId=request.chatId,
+                    role=ChatMessageRoleEnum.USER.value,
+                    content=text,
+                    emailId=request.emailId,
+                    visible=False,
+                    fileId=str(fileId),
+                )
+            )
             collection.insert_one(dbSchema.model_dump())
             return JSONResponse(
                 status_code=200,
-                content={
-                    "data": "SUCCESS",
-                    "id": str(fileId),
-                },
+                content={"data": "SUCCESS", "id": str(fileId), "text": text},
             )
         except Exception as e:
             print(e)
@@ -373,7 +389,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
         messages.append(
             ChatMessageModel(
                 role=ChatMessageRoleEnum.SYSTEM,
-                content=GENERATE_RESUME_PROMPT,
+                content=GENERATE_CONTENT_PROMPT,
             )
         )
         response = await chatService.Chat(
@@ -382,17 +398,16 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 maxCompletionTokens=8000,
                 model=CerebrasChatModelEnum.GPT_OSS_120B,
                 method="cerebras",
-                temperature=0.1,
+                temperature=0.3,
                 topP=0.9,
                 stream=False,
                 responseFormat={
                     "type": "object",
                     "properties": {
-                        "summary": {"type": "string"},
+                        "contentForRag": {"type": "string"},
                         "shortDescription": {"type": "string"},
-
                     },
-                    "required": ["summary", "shortDescription"],
+                    "required": ["contentForRag", "shortDescription"],
                     "additionalProperties": False,
                 },
             )

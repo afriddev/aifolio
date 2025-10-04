@@ -17,6 +17,7 @@ class FileModel(BaseModel):
     size: int
     chatId: str
     messageId: str
+    emailId: str
 
 
 class ChatRequestModel(BaseModel):

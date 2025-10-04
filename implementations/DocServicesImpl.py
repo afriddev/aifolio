@@ -5,7 +5,7 @@ from typing import List, Tuple
 class DocServicesImpl(ABC):
 
     @abstractmethod
-    def ExtractTextAndImagesFromPdf(self, docPath: str) -> Tuple[str, List[str]]:
+    def ExtractTextAndImagesFromPdf(self, docPath: str,images:bool) -> Tuple[str, List[str]]:
         pass
 
     @abstractmethod

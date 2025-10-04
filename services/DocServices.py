@@ -17,7 +17,9 @@ load_dotenv()
 
 
 class DocServices(DocServicesImpl):
-    def ExtractTextAndImagesFromPdf(self, docPath: str) -> Tuple[str, List[str]]:
+    def ExtractTextAndImagesFromPdf(
+        self, docPath: str, images: bool = False
+    ) -> Tuple[str, List[str]]:
         pdfBytes = base64.b64decode(docPath)
         doc: Any = fitz.open(stream=pdfBytes, filetype="pdf")
         # doc: Any = fitz.open(docPath)
@@ -67,7 +69,7 @@ class DocServices(DocServicesImpl):
 
                     b64Str = base64.b64encode(data).decode("utf-8") if data else ""
                     imagesB64.append(b64Str)
-                    pageItems.append(("image", y0, placeholder))
+                    pageItems.append(("image", y0, placeholder if (images) else ""))
                     imageCounter += 1
 
             pageItems.sort(key=lambda x: x[1])
