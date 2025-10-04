@@ -79,8 +79,6 @@ class ChatControllerServices(ChatControllerServiceImpl):
             generated = chatResponse.get("response").get("generated", "")
             titleGenerated = generated == "true"
 
-            
-
             if messagesLength == 0 or titleGenerated:
                 await webSocket.sendToUser(
                     email=emailId,
@@ -160,7 +158,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 modelParams=ChatServiceRequestModel(
                     messages=chatMessages,
                     maxCompletionTokens=20000,
-                    model=OpenaiChatModelsEnum.SEED_OSS_32B_500K,
+                    model=OpenaiChatModelsEnum.GPT_OSS_120B_110K,
                     method="openai",
                     temperature=0.5,
                     topP=0.9,
@@ -292,6 +290,27 @@ class ChatControllerServices(ChatControllerServiceImpl):
             return JSONResponse(
                 status_code=200,
                 content={"data": "SUCCESS", "chatHistory": tempChatHistory},
+            )
+        except Exception as e:
+            print(e)
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "data": "ERROR",
+                    "error": str(e),
+                },
+            )
+
+    def DeleteChat(self, id: str) -> JSONResponse:
+        try:
+            chatCollection = db["chats"]
+            chatMessageCollection = db["chatMessages"]
+            chatCollection.delete_one({"id": id})
+            chatMessageCollection.delete_many({"chatId": id})
+
+            return JSONResponse(
+                status_code=200,
+                content={"data": "SUCCESS", "id": id},
             )
         except Exception as e:
             print(e)

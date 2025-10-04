@@ -31,3 +31,6 @@ class ChatRequestModel(BaseModel):
     fileId: str | None = None
     emailId: str
     titleGenerated: bool | None = False
+
+class DeleteChatRequestModel(BaseModel):
+    id: str

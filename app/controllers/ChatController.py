@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.models import ChatRequestModel, FileModel
+from app.models import ChatRequestModel, FileModel, DeleteChatRequestModel
 from fastapi.responses import StreamingResponse
 from app.services import ChatControllerServices
 
@@ -22,8 +22,12 @@ async def upload(request: FileModel):
 async def allChats():
     return chatService.GetAllChats()
 
+
 @ChatRouter.get("/chatistory/{id}")
-async def chatHistory(id:str):
+async def chatHistory(id: str):
     return chatService.getChatHistory(id)
 
 
+@ChatRouter.post("/deletechat")
+async def deleteChat(request: DeleteChatRequestModel):
+    return chatService.DeleteChat(request.id)

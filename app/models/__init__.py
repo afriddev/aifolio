@@ -1,3 +1,3 @@
-from .ChatControllerModels import ChatRequestModel,FileModel
+from .ChatControllerModels import ChatRequestModel,FileModel,DeleteChatRequestModel
 
-__all__ = ["ChatRequestModel","FileModel"]
+__all__ = ["ChatRequestModel","FileModel","DeleteChatRequestModel"]
