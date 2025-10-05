@@ -156,7 +156,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 modelParams=ChatServiceRequestModel(
                     messages=chatMessages,
                     maxCompletionTokens=3000,
-                    model=OpenaiChatModelsEnum.QWEN_NEXT_80B_250K_THINKING,
+                    model=OpenaiChatModelsEnum.LLAMA_17B_110K,
                     method="openai",
                     temperature=0.2,
                     topP=0.9,
@@ -297,6 +297,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                         "role": chat.get("role", "").lower(),
                         "content": chat.get("content", ""),
                         "visible": chat.get("visible", ""),
+                        "timeAndDate": str(chat.get("createdAt", ""))
                     }
                 )
             return JSONResponse(

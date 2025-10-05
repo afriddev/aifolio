@@ -72,8 +72,8 @@ CHAT_SUMMARY_PROMPT = """
 - Ensure valid, well-formed JSON.
 
 # Logic
-- Set "generated": "false" and "summary": 3-7 words ONLY for pure chit-chat (greetings, jokes, off-topic one-liners without substance).
-- Set "generated": "true" and "summary": A concise chat title (3-7 words capturing the main topic) for ANY substantive inquiry or topic-focused message, even single exchanges (e.g., questions on LLMs, fine-tuning).
+- Set "generated": "false" and "summary": 2-3 words ONLY for pure chit-chat (greetings, jokes, off-topic one-liners without substance).
+- Set "generated": "true" and "summary": A concise chat title (2-3 words capturing the main topic) for ANY substantive inquiry or topic-focused message, even single exchanges (e.g., questions on LLMs, fine-tuning).
 """
 
 GENERATE_CONTENT_PROMPT = """

@@ -39,6 +39,8 @@ class ChatMessageSchema(TimeStampedModel):
     reasoning: str | None = None
     toolName: str | None = None
     visible: bool = True
+    liked: bool | None = False
+    disliked: bool | None = False
 
 class ApiKeySchema(TimeStampedModel):
     id: str

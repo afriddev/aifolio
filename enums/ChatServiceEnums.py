@@ -39,11 +39,6 @@ class OpenaiChatModelsEnum(Enum):
     SEED_OSS_32B_500K = ("bytedance/seed-oss-36b-instruct", 500000) 
     QWEN_NEXT_80B_250K_THINKING = ("qwen/qwen3-next-80b-a3b-thinking", 250000)
 
-    # Coding Models
-    QWEN_480B_CODER_110K = ("qwen/qwen3-coder-480b-a35b-instruct", 110000)
-    LLAMA_405B_110k = ("meta/llama-3.1-405b-instruct", 110000)
-    LLAMA_235B_110k = ("nvidia/llama-3.1-nemotron-ultra-253b-v1", 110000)
-
 
     # Normal Models
     LLAMA_17B_110K = ("meta/llama-4-maverick-17b-128e-instruct", 110000)
