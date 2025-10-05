@@ -39,3 +39,10 @@ class ChatMessageSchema(TimeStampedModel):
     reasoning: str | None = None
     toolName: str | None = None
     visible: bool = True
+
+class ApiKeySchema(TimeStampedModel):
+    id: str
+    chatId:str
+    key: str
+    hash: str
+    salt: bytes

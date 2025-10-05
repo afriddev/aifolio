@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
-from app.models import GenerateApiKeyResponseModel
+from app.models import (
+    GenerateApiKeyResponseModel,
+    HandleContextKeyGenerationRequestModel,
+)
 
 
 class HandleKeyInterfaceImpl(ABC):
@@ -24,5 +27,7 @@ class HandleKeyInterfaceImpl(ABC):
 class ApiKeyControllerServiceImpl(ABC):
 
     @abstractmethod
-    def ValidateApiKey(self, Key: str, apiKey: str) -> bool:
+    def HandleContextKeyGeneration(
+        self, request: HandleContextKeyGenerationRequestModel
+    ) -> None:
         pass

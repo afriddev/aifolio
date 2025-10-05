@@ -417,7 +417,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                         },
                         "required": ["contentForRag", "shortDescription"],
                         "additionalProperties": False,
-                    },
+                    },  
                 )
             )
             chatResponse: dict[str, Any] = {}

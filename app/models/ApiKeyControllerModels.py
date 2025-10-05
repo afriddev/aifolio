@@ -8,6 +8,13 @@ class GenerateApiKeyResponseModel(BaseModel):
     salt:bytes
 
 
+class HandleContextKeyGenerationRequestModel(BaseModel):
+    chatId: str
+    context:str
+    description:str
+
+
+
 
 
 
