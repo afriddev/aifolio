@@ -12,7 +12,7 @@ from app.models import (
 from app.services.EmailService import EmailService
 from database import mongoClient
 from app.implementations import ApiKeyControllerServiceImpl, HandleKeyInterfaceImpl
-from app.schemas import ApiKeySchema
+from app.schemas import ApiKeySchema,ContextSchema
 from uuid import uuid4
 
 
@@ -71,16 +71,25 @@ class ApiKeyControllerService(ApiKeyControllerServiceImpl):
             chatId=request.chatId,
             key=generatedKey.key,
             hash=generatedKey.hash,
-            salt=generatedKey.salt,
+            salt=Binary(generatedKey.salt),
         )
 
-        apiKeyCollection = self.db["apiKeys"]
+        apiKeyCollection = self.db["contextKeys"]
         apiKeyCollection.update_one(
             {"chatId": tempApiSchema.chatId},
             {"$set": tempApiSchema.model_dump()},
             upsert=True,
         )
+        contextSchema = ContextSchema(
+            id=str(uuid4()), chatId=request.chatId, context=request.context, description=request.description
+        )
 
+        contextCollection = self.db["contextData"]
+        contextCollection.update_one(
+            {"chatId": contextSchema.chatId},
+            {"$set": contextSchema.model_dump()},
+            upsert=True,
+        )
 
         title = "AiFolio API Key: Ready for Your Chatbot Integration!"
         subject = (

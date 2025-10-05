@@ -46,3 +46,9 @@ class ApiKeySchema(TimeStampedModel):
     key: str
     hash: str
     salt: bytes
+
+class ContextSchema(TimeStampedModel):
+    id: str
+    chatId: str
+    context: str
+    description: str
