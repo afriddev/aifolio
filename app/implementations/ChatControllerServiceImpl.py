@@ -46,5 +46,7 @@ class ChatControllerServiceImpl(ABC):
         pass
 
     @abstractmethod
-    async def GenerateResumeContent(self, messages: list[ChatMessageModel]) -> None:
+    async def GenerateResumeContent(
+        self, messages: list[ChatMessageModel], retryLimit: int
+    ) -> None:
         pass

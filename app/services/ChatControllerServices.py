@@ -17,6 +17,7 @@ from app.state import ChatUsedTool, ChatEvent, chatContent, chatReasoning
 from typing import Any
 import json
 from app.WebSocketManager import webSocket
+import time
 
 
 chatService = ChatServices()
@@ -107,6 +108,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
 
         except Exception as e:
             print(e)
+            time.sleep(3)
             await self.GenerateChatSummary(
                 query, id, emailId, messagesLength, retryLimit + 1
             )
@@ -384,32 +386,53 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 },
             )
 
-    async def GenerateResumeContent(self, messages: list[ChatMessageModel]):
-        messages.pop(0)
-        messages.append(
-            ChatMessageModel(
-                role=ChatMessageRoleEnum.SYSTEM,
-                content=GENERATE_CONTENT_PROMPT,
+    async def GenerateResumeContent(
+        self, messages: list[ChatMessageModel], retryLimit: int
+    ) -> None:
+        if retryLimit >= 3:
+            return
+
+        try:
+            messages.pop(0)
+            messages.append(
+                ChatMessageModel(
+                    role=ChatMessageRoleEnum.SYSTEM,
+                    content=GENERATE_CONTENT_PROMPT,
+                )
             )
-        )
-        response = await chatService.Chat(
-            modelParams=ChatServiceRequestModel(
-                messages=messages,
-                maxCompletionTokens=8000,
-                model=CerebrasChatModelEnum.GPT_OSS_120B,
-                method="cerebras",
-                temperature=0.3,
-                topP=0.9,
-                stream=False,
-                responseFormat={
-                    "type": "object",
-                    "properties": {
-                        "contentForRag": {"type": "string"},
-                        "shortDescription": {"type": "string"},
+            response: Any = await chatService.Chat(
+                modelParams=ChatServiceRequestModel(
+                    messages=messages,
+                    maxCompletionTokens=8000,
+                    model=CerebrasChatModelEnum.GPT_OSS_120B,
+                    method="cerebras",
+                    temperature=0.3,
+                    topP=0.9,
+                    stream=False,
+                    responseFormat={
+                        "type": "object",
+                        "properties": {
+                            "contentForRag": {"type": "string"},
+                            "shortDescription": {"type": "string"},
+                        },
+                        "required": ["contentForRag", "shortDescription"],
+                        "additionalProperties": False,
                     },
-                    "required": ["contentForRag", "shortDescription"],
-                    "additionalProperties": False,
-                },
+                )
             )
-        )
-        print(response.content)
+            chatResponse: dict[str, Any] = {}
+            if response.content:
+                try:
+                    chatResponse = json.loads(response.content)
+                except Exception as e:
+                    time.sleep(3)
+                    await self.GenerateResumeContent(messages, retryLimit + 1)
+            contentForRag = chatResponse.get("response", {}).get("contentForRag", "")
+            shortDescription = chatResponse.get("response", {}).get(
+                "shortDescription", ""
+            )
+
+        except Exception as e:
+            print(e)
+            time.sleep(3)
+            await self.GenerateResumeContent(messages, retryLimit + 1)

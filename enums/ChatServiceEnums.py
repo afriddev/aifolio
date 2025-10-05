@@ -26,6 +26,8 @@ class CerebrasChatModelEnum(Enum):
     GPT_OSS_120B = ("gpt-oss-120b", 60000, False)
     META_LLAMA_108B_INSTRUCT = ("llama-4-scout-17b-16e-instruct", 6000, True)
     LLAMA_70B = ("llama-3.3-70b", 60000, True)
+    QWEN_235B_THINKING = ("qwen-3-235b-a22b-thinking-2507", 60000, True)
+    QWEN_235B_INSTRUCT = ("qwen-3-235b-a22b-instruct-2507", 60000, True)
     QWEN_32B = ("qwen-3-32b", 60000, True)
 
 

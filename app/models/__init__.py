@@ -1,3 +1,9 @@
-from .ChatControllerModels import ChatRequestModel,FileModel,DeleteChatRequestModel
+from .ChatControllerModels import ChatRequestModel, FileModel, DeleteChatRequestModel
+from .ApiKeyControllerModels import GenerateApiKeyResponseModel
 
-__all__ = ["ChatRequestModel","FileModel","DeleteChatRequestModel"]
+__all__ = [
+    "ChatRequestModel",
+    "FileModel",
+    "DeleteChatRequestModel",
+    "GenerateApiKeyResponseModel",
+]
