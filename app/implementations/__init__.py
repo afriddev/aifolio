@@ -1,12 +1,13 @@
 from .ChatControllerServiceImpl import ChatControllerServiceImpl
 from .EmailServiceImpl import EmailServiceImpl
 from .ApiKeyControllerServiceImpl import (
-    ApiKeyControllerServiceImpl,
+    ApiKeyControllerServicesImpl,
     HandleKeyInterfaceImpl,
 )
 
 __all__ = [
     "ChatControllerServiceImpl",
     "EmailServiceImpl",
-    "ApiKeyControllerServiceImpl",
+    "ApiKeyControllerServicesImpl",
+    "HandleKeyInterfaceImpl",
 ]

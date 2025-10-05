@@ -38,6 +38,7 @@ class ChatServices(ChatServicesImpl):
         elif modelParams.method == "cerebras":
             cerebrasClient.api_key = GetCerebrasAPIKey()
 
+       
         createCall = client.chat.completions.create(
             messages=cast(Any, modelParams.messages),
             model=modelParams.model.value[0],
@@ -45,6 +46,8 @@ class ChatServices(ChatServicesImpl):
             stream=modelParams.stream,
             temperature=modelParams.temperature,
             top_p=modelParams.topP,
+            frequency_penalty=0,
+            presence_penalty=0,
             tools=cast(Any, modelParams.tools if modelParams.tools else None),
             response_format=cast(
                 Any,
@@ -66,7 +69,9 @@ class ChatServices(ChatServicesImpl):
                     }
                 ),
             ),
+            tool_choice="auto"
         )
+
         chatCompletion: Any = await createCall
 
         return chatCompletion
@@ -82,6 +87,10 @@ class ChatServices(ChatServicesImpl):
             if modelParams.stream:
 
                 async def eventGenerator():
+                    startedReasoning = False
+                    reasoningStartToken: Any = ""
+                    reasoningEndToken: Any = ""
+                    reasoningStartIndex = 0
                     try:
                         async for chunk in chatCompletion:
 
@@ -95,6 +104,30 @@ class ChatServices(ChatServicesImpl):
                                     reasoning = getattr(delta, "reasoning", None)
                                     toolCalls = getattr(delta, "tool_calls", None)
                                     toolName = None
+                                    
+
+                                    if startedReasoning:
+                                        reasoningEndToken = reasoningEndToken + content
+                                        if "</think>" in reasoningEndToken:
+                                            startedReasoning = False
+                                            reasoningStartToken = ""
+
+                                        reasoningContent = content
+                                        content = None
+
+                                    if reasoningStartIndex < 5 and content:
+                                        reasoningStartToken = (
+                                            reasoningStartToken + content
+                                        )
+                                        if "<think>" in reasoningStartToken:
+                                            startedReasoning = True
+                                            reasoningStartIndex = 5
+                                        else:
+                                            reasoningStartIndex += 1
+
+
+
+
                                     if toolCalls and len(toolCalls) > 0:
                                         toolFunction = getattr(
                                             toolCalls[0], "function", None

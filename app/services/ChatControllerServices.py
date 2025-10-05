@@ -18,14 +18,16 @@ from typing import Any
 import json
 from app.WebSocketManager import webSocket
 import time
-
-
-chatService = ChatServices()
-docService = DocServices()
-db = mongoClient["aifolio"]
+from app.services.ApiKeyControllerService import ApiKeyControllerServices
+from app.models import HandleContextKeyGenerationRequestModel
 
 
 class ChatControllerServices(ChatControllerServiceImpl):
+    def __init__(self):
+        self.db = mongoClient["aifolio"]
+        self.chatService = ChatServices()
+        self.apiKeyService = ApiKeyControllerServices()
+        self.docService = DocServices()
 
     async def GenerateChatSummary(
         self,
@@ -48,7 +50,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
             ),
         ]
         try:
-            response: Any = await chatService.Chat(
+            response: Any = await self.chatService.Chat(
                 modelParams=ChatServiceRequestModel(
                     messages=messages,
                     maxCompletionTokens=500,
@@ -116,9 +118,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
     async def Chat(self, request: ChatRequestModel) -> StreamingResponse:
 
         try:
-            fileData = ""
-            # if request.fileId:
-            #     fileData = self.GetFileContent(request.fileId)
+
 
             if request.titleGenerated is False:
                 asyncio.create_task(
@@ -148,22 +148,17 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 ),
                 ChatMessageModel(
                     role=ChatMessageRoleEnum.USER,
-                    # content=(
-                    #     (fileData + "\n\n" + request.query)
-                    #     if getattr(request, "fileId", None)
-                    #     else request.query
-                    # ),
                     content=(request.query),
                 ),
             ]
 
-            response: Any = await chatService.Chat(
+            response: Any = await self.chatService.Chat(
                 modelParams=ChatServiceRequestModel(
                     messages=chatMessages,
-                    maxCompletionTokens=20000,
-                    model=OpenaiChatModelsEnum.SEED_OSS_32B_500K,
+                    maxCompletionTokens=3000,
+                    model=OpenaiChatModelsEnum.QWEN_NEXT_80B_250K_THINKING,
                     method="openai",
-                    temperature=0.3,
+                    temperature=0.2,
                     topP=0.9,
                     stream=True,
                     tools=[
@@ -215,7 +210,9 @@ class ChatControllerServices(ChatControllerServiceImpl):
                         content="Generated your key, you will get the key by email.",
                     )
                     self.SaveChatMessage(tempToolChatMessage)
-                    await self.GenerateResumeContent(messages=chatMessages)
+                    await self.GenerateResumeContent(
+                        messages=chatMessages, chatId=request.chatId, retryLimit=0
+                    )
                 del ChatUsedTool[request.messageId]
                 del ChatEvent[request.messageId]
 
@@ -231,7 +228,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
 
     def SaveChatMessage(self, request: ChatMessageSchema, retryLimit: int = 0) -> None:
         try:
-            collection = db["chatMessages"]
+            collection = self.db["chatMessages"]
             collection.insert_one(request.model_dump())
         except Exception as e:
             print(e)
@@ -243,7 +240,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
         retryLimit: int = 0,
     ) -> None:
         try:
-            collection = db["chats"]
+            collection = self.db["chats"]
             collection.update_one(
                 {"id": request.id}, {"$set": request.model_dump()}, upsert=True
             )
@@ -252,7 +249,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
             self.SaveChat(request, retryLimit + 1) if retryLimit < 3 else None
 
     def GetFileContent(self, fileId: str) -> str:
-        collection = db["files"]
+        collection = self.db["files"]
         fileData = collection.find_one({"id": fileId})
         if fileData:
             return fileData.get("content", "")
@@ -260,7 +257,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
 
     def GetAllChats(self) -> JSONResponse:
         try:
-            collection = db["chats"]
+            collection = self.db["chats"]
             chats = list(collection.find({}).sort("createdAt", -1))
             tempAllChats: list[dict[str, str]] = []
             for chat in chats:
@@ -287,8 +284,8 @@ class ChatControllerServices(ChatControllerServiceImpl):
 
     def getChatHistory(self, id: str) -> JSONResponse:
         try:
-            chatMessageCollection = db["chatMessages"]
-            chatCollection = db["chats"]
+            chatMessageCollection = self.db["chatMessages"]
+            chatCollection = self.db["chats"]
             chatDetails = chatCollection.find_one({"id": id})
 
             chatsMessages = list(chatMessageCollection.find({"chatId": id}))
@@ -322,8 +319,8 @@ class ChatControllerServices(ChatControllerServiceImpl):
 
     def DeleteChat(self, id: str) -> JSONResponse:
         try:
-            chatCollection = db["chats"]
-            chatMessageCollection = db["chatMessages"]
+            chatCollection = self.db["chats"]
+            chatMessageCollection = self.db["chatMessages"]
             chatCollection.delete_one({"id": id})
             chatMessageCollection.delete_many({"chatId": id})
 
@@ -344,7 +341,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
     async def UploadFile(self, request: FileModel, retryLimit: int = 0) -> JSONResponse:
         try:
             fileId = uuid4()
-            text, _ = docService.ExtractTextAndImagesFromPdf(request.data)
+            text, _ = self.docService.ExtractTextAndImagesFromPdf(request.data)
 
             dbSchema = DocumentsFileSchema(
                 name=request.name,
@@ -357,13 +354,13 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 chatId=request.chatId,
             )
 
-            collection = db["files"]
+            collection = self.db["files"]
             self.SaveChatMessage(
                 request=ChatMessageSchema(
                     id=request.messageId,
                     chatId=request.chatId,
                     role=ChatMessageRoleEnum.USER.value,
-                    content=text,
+                    content=f"File name: {request.name}\n File Size:{request.size} File type:{request.mediaType} Extracted Text: {text}",
                     emailId=request.emailId,
                     visible=False,
                     fileId=str(fileId),
@@ -372,7 +369,11 @@ class ChatControllerServices(ChatControllerServiceImpl):
             collection.insert_one(dbSchema.model_dump())
             return JSONResponse(
                 status_code=200,
-                content={"data": "SUCCESS", "id": str(fileId), "text": text},
+                content={
+                    "data": "SUCCESS",
+                    "id": str(fileId),
+                    "text": f"File name: {request.name}\n File Size:{request.size} File type:{request.mediaType} Extracted Text: {text}",
+                },
             )
         except Exception as e:
             print(e)
@@ -387,7 +388,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
             )
 
     async def GenerateResumeContent(
-        self, messages: list[ChatMessageModel], retryLimit: int
+        self, messages: list[ChatMessageModel], chatId: str, retryLimit: int
     ) -> None:
         if retryLimit >= 3:
             return
@@ -400,7 +401,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                     content=GENERATE_CONTENT_PROMPT,
                 )
             )
-            response: Any = await chatService.Chat(
+            response: Any = await self.chatService.Chat(
                 modelParams=ChatServiceRequestModel(
                     messages=messages,
                     maxCompletionTokens=8000,
@@ -417,7 +418,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                         },
                         "required": ["contentForRag", "shortDescription"],
                         "additionalProperties": False,
-                    },  
+                    },
                 )
             )
             chatResponse: dict[str, Any] = {}
@@ -426,13 +427,24 @@ class ChatControllerServices(ChatControllerServiceImpl):
                     chatResponse = json.loads(response.content)
                 except Exception as e:
                     time.sleep(3)
-                    await self.GenerateResumeContent(messages, retryLimit + 1)
+                    await self.GenerateResumeContent(
+                        messages, chatId=chatId, retryLimit=retryLimit + 1
+                    )
             contentForRag = chatResponse.get("response", {}).get("contentForRag", "")
             shortDescription = chatResponse.get("response", {}).get(
                 "shortDescription", ""
+            )
+            self.apiKeyService.HandleContextKeyGeneration(
+                request=HandleContextKeyGenerationRequestModel(
+                    chatId=chatId,
+                    context=contentForRag,
+                    description=shortDescription,
+                )
             )
 
         except Exception as e:
             print(e)
             time.sleep(3)
-            await self.GenerateResumeContent(messages, retryLimit + 1)
+            await self.GenerateResumeContent(
+                messages, chatId=chatId, retryLimit=retryLimit + 1
+            )

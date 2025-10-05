@@ -33,26 +33,24 @@ class CerebrasChatModelEnum(Enum):
 
 
 class OpenaiChatModelsEnum(Enum):
+    #Best models for api key trigger
+    GPT_OSS_120B_110K = ("openai/gpt-oss-120b", 110000)
+    QWEN_NEXT_80B_250K_INSTRUCT = ("qwen/qwen3-next-80b-a3b-instruct", 250000)
+    SEED_OSS_32B_500K = ("bytedance/seed-oss-36b-instruct", 500000) 
+    QWEN_NEXT_80B_250K_THINKING = ("qwen/qwen3-next-80b-a3b-thinking", 250000)
+
     # Coding Models
     QWEN_480B_CODER_110K = ("qwen/qwen3-coder-480b-a35b-instruct", 110000)
     LLAMA_405B_110k = ("meta/llama-3.1-405b-instruct", 110000)
     LLAMA_235B_110k = ("nvidia/llama-3.1-nemotron-ultra-253b-v1", 110000)
 
-    # Reasoning Models
-    GPT_OSS_120B_110K = ("openai/gpt-oss-120b", 110000)
-    QWEN_NEXT_80B_200K_THINKING = ("qwen/qwen3-next-80b-a3b-thinking", 200000)
-    SEED_OSS_32B_500K = ("bytedance/seed-oss-36b-instruct", 500000) 
 
     # Normal Models
     LLAMA_17B_110K = ("meta/llama-4-maverick-17b-128e-instruct", 110000)
-    QWEN_NEXT_80B_250K_INSTRUCT = ("qwen/qwen3-next-80b-a3b-instruct", 250000)
     MISTRAL_NEMOTRON_240K = ("mistralai/mistral-nemotron", 240000)
-    JAMBA_50B_200K = ("ai21labs/jamba-1.5-mini-instruct", 200000)
 
 
 
 
 
-    # Long Context  
-    # LLAMA_51B_100K = ("nvidia/llama-3.1-nemotron-51b-instruct", 110000)
 
