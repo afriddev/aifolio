@@ -26,7 +26,7 @@ class ChatRequestModel(BaseModel):
     query: str
     role: str
     useWebSearch: bool
-    useDeepResearch: bool
+    useThink: bool
     useFlash: bool
     messages: List[ChatMessageModel]
     fileId: str | None = None

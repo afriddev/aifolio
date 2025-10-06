@@ -3,6 +3,7 @@ from .ApiKeyControllerModels import (
     GenerateApiKeyResponseModel,
     HandleContextKeyGenerationRequestModel,
 )
+from .WebSocketControllerModels import HandleLikeRequestModel
 
 __all__ = [
     "ChatRequestModel",
@@ -10,4 +11,5 @@ __all__ = [
     "DeleteChatRequestModel",
     "GenerateApiKeyResponseModel",
     "HandleContextKeyGenerationRequestModel",
+    "HandleLikeRequestModel",
 ]

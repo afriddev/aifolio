@@ -2,9 +2,10 @@ from fastapi import FastAPI
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
-from app.controllers import ChatRouter
+from app.controllers import ChatRouter, WebSocketRouterController
 from app import webSocket
-from fastapi import WebSocket,WebSocketDisconnect
+from fastapi import WebSocket, WebSocketDisconnect
+import json
 
 
 # @asynccontextmanager
@@ -29,18 +30,27 @@ app.add_middleware(
 )
 app.include_router(ChatRouter, prefix="/api/v1")
 
+webSocketRouter = WebSocketRouterController()
+
 
 @app.websocket("/ws/{email}")
 async def websocket_endpoint(websocket: WebSocket, email: str):
     await webSocket.connect(websocket, email)
     try:
         while True:
-            await asyncio.sleep(10) 
-    except WebSocketDisconnect:
-        webSocket.disconnect(email)
+            try:
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
+                webSocketRouter.RouteMessage(data)
+            except asyncio.TimeoutError:
+                await websocket.send_text(json.dumps({"type": "ping"}))
+                continue
+            
 
+    except WebSocketDisconnect:
+        await webSocket.disconnect(email)
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=False)
+
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)

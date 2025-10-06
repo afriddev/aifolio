@@ -40,7 +40,7 @@ class ChatMessageSchema(TimeStampedModel):
     toolName: str | None = None
     visible: bool = True
     liked: bool | None = False
-    disliked: bool | None = False
+    disLiked: bool | None = False
 
 class ApiKeySchema(TimeStampedModel):
     id: str

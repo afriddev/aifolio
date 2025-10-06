@@ -297,7 +297,8 @@ class ChatControllerServices(ChatControllerServiceImpl):
                         "role": chat.get("role", "").lower(),
                         "content": chat.get("content", ""),
                         "visible": chat.get("visible", ""),
-                        "timeAndDate": str(chat.get("createdAt", ""))
+                        "timeAndDate": str(chat.get("createdAt", "")),
+                        
                     }
                 )
             return JSONResponse(

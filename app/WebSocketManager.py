@@ -1,6 +1,7 @@
 from typing import Dict
 from fastapi import WebSocket
 from abc import ABC, abstractmethod
+import asyncio
 
 
 class WebSocketManagerImpl(ABC):
@@ -9,7 +10,7 @@ class WebSocketManagerImpl(ABC):
         pass
 
     @abstractmethod
-    def disconnect(self, email: str):
+    async def disconnect(self, email: str):
         pass
 
     @abstractmethod
@@ -20,19 +21,25 @@ class WebSocketManagerImpl(ABC):
 class WebSocketManager(WebSocketManagerImpl):
     def __init__(self):
         self.active: Dict[str, WebSocket] = {}
-
+        self.lock = asyncio.Lock()
+    
     async def connect(self, websocket: WebSocket, email: str):
-        await websocket.accept()
-        self.active[email] = websocket
-        # print(f"✅ {email} connected")
-
-    def disconnect(self, email: str):
-        if email in self.active:
-            del self.active[email]
-
+        async with self.lock:
+            await websocket.accept()
+            self.active[email] = websocket
+            print(f"✅ {email} connected")
+    
+    async def disconnect(self, email: str):
+        async with self.lock:
+            if email in self.active:
+                del self.active[email]
+    
     async def sendToUser(self, email: str, message: str):
-        if email in self.active:
-            await self.active[email].send_text(message)
+        async with self.lock:
+            if email in self.active:
+                await self.active[email].send_text(message)
+            else:
+                print(f"⚠️ No active connection for {email}")
 
 
 webSocket = WebSocketManager()
