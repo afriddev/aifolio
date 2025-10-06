@@ -11,9 +11,7 @@ from models import (
     ChatRequestModel,
     ChatResponseModel,
     ChatUsageModel,
-    ChatMessageModel,
 )
-from enums import ChatMessageRoleEnum
 from cerebras.cloud.sdk import AsyncCerebras
 
 from enums import (
@@ -21,7 +19,16 @@ from enums import (
 )
 
 from utils import GetNvidiaURL, GetNvidiaAPIKey, GetCerebrasAPIKey
-from app.state import ChatUsedTool, ChatEvent, chatContent, chatReasoning
+from app.ChatState import (
+    ChatUsedTool,
+    ChatEvent,
+    ChatContent,
+    ChatReasoning,
+    ChatCompletionTokens,
+    ChatPromptTokens,
+    ChatTotalTokens,
+    ReasoningTokens,
+)
 
 
 openAiClient = AsyncOpenAI(base_url="", api_key="")
@@ -38,7 +45,6 @@ class ChatServices(ChatServicesImpl):
         elif modelParams.method == "cerebras":
             cerebrasClient.api_key = GetCerebrasAPIKey()
 
-       
         createCall = client.chat.completions.create(
             messages=cast(Any, modelParams.messages),
             model=modelParams.model.value[0],
@@ -69,7 +75,8 @@ class ChatServices(ChatServicesImpl):
                     }
                 ),
             ),
-            tool_choice="auto"
+            tool_choice="auto",
+            stream_options={"include_usage": True},
         )
 
         chatCompletion: Any = await createCall
@@ -93,6 +100,9 @@ class ChatServices(ChatServicesImpl):
                     reasoningStartIndex = 0
                     try:
                         async for chunk in chatCompletion:
+                            print(chunk)
+
+                            
 
                             if getattr(chunk, "choices", None):
                                 delta = getattr(chunk.choices[0], "delta", None)
@@ -104,7 +114,6 @@ class ChatServices(ChatServicesImpl):
                                     reasoning = getattr(delta, "reasoning", None)
                                     toolCalls = getattr(delta, "tool_calls", None)
                                     toolName = None
-                                    
 
                                     if startedReasoning:
                                         reasoningEndToken = reasoningEndToken + content
@@ -125,9 +134,6 @@ class ChatServices(ChatServicesImpl):
                                         else:
                                             reasoningStartIndex += 1
 
-
-
-
                                     if toolCalls and len(toolCalls) > 0:
                                         toolFunction = getattr(
                                             toolCalls[0], "function", None
@@ -138,11 +144,11 @@ class ChatServices(ChatServicesImpl):
                                         toolName = None
 
                                     if content:
-                                        chatContent[modelParams.messageId] += content
+                                        ChatContent[modelParams.messageId] += content
                                         yield f"data: {json.dumps({'type': 'content', 'data': content})}\n\n"
 
                                     if reasoning:
-                                        chatReasoning[
+                                        ChatReasoning[
                                             modelParams.messageId
                                         ] += reasoning
                                         yield f"data: {json.dumps({'type': 'reasoning', 'data': reasoning})}\n\n"
@@ -152,10 +158,29 @@ class ChatServices(ChatServicesImpl):
                                         yield f"data: {json.dumps({'type': 'tool_name', 'data': toolName})}\n\n"
 
                                     if reasoningContent:
-                                        chatReasoning[
+                                        ChatReasoning[
                                             modelParams.messageId
                                         ] += reasoningContent
                                         yield f"data: {json.dumps({'type': 'reasoning', 'data': reasoningContent})}\n\n"
+                            if getattr(chunk, "usage", None):
+
+                                usage = chunk.usage
+                                ChatCompletionTokens[modelParams.messageId] = (
+                                    usage.completion_tokens
+                                )
+                                ChatPromptTokens[modelParams.messageId] = (
+                                    usage.prompt_tokens
+                                )
+                                ChatTotalTokens[modelParams.messageId] = (
+                                    usage.total_tokens
+                                )
+                                ReasoningTokens[modelParams.messageId] = (
+                                    usage.reasoning_tokens
+                                    if getattr(usage, "reasoning_tokens", None)
+                                    else 0
+                                )
+
+                                yield f"data: {json.dumps({'type': 'usage', 'data': {'completionTokens': usage.completion_tokens, 'promptTokens': usage.prompt_tokens, 'totalTokens': usage.total_tokens , 'reasoningTokens': usage.reasoning_tokens}})}\n\n"
 
                     except Exception as e:
                         yield f"event: error\ndata: {str(e)}\n\n"

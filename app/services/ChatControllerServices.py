@@ -13,7 +13,7 @@ from app.utils import (
 from database import mongoClient
 from uuid import uuid4
 from app.schemas import DocumentsFileSchema, ChatMessageSchema, ChatSchema
-from app.state import ChatUsedTool, ChatEvent, chatContent, chatReasoning
+from app.ChatState import ChatUsedTool, ChatEvent, ChatContent, ChatReasoning
 from typing import Any
 import json
 from app.WebSocketManager import webSocket
@@ -155,7 +155,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 modelParams=ChatServiceRequestModel(
                     messages=chatMessages,
                     maxCompletionTokens=3000,
-                    model=OpenaiChatModelsEnum.LLAMA_17B_110K,
+                    model=OpenaiChatModelsEnum.QWEN_NEXT_80B_250K_INSTRUCT,
                     method="openai",
                     temperature=0.2,
                     topP=0.9,
@@ -185,8 +185,8 @@ class ChatControllerServices(ChatControllerServiceImpl):
                     id=str(uuid4()),
                     chatId=request.chatId,
                     role=ChatMessageRoleEnum.ASSISTANT.value,
-                    content=chatContent[request.messageId],
-                    reasoning=chatReasoning[request.messageId],
+                    content=ChatContent[request.messageId],
+                    reasoning=ChatReasoning[request.messageId],
                     toolName=ChatUsedTool[request.messageId],
                 )
 
@@ -296,6 +296,8 @@ class ChatControllerServices(ChatControllerServiceImpl):
                         "role": chat.get("role", "").lower(),
                         "content": chat.get("content", ""),
                         "visible": chat.get("visible", ""),
+                        "liked": chat.get("liked", ""),
+                        "disLiked": chat.get("disLiked", ""),
                         "timeAndDate": str(chat.get("createdAt", "")),
                     }
                 )

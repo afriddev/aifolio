@@ -9,7 +9,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
 
     def GetAllApiKeys(self) -> JSONResponse:
         try:
-            collection = self.db["apikeys"]
+            collection = self.db["apiKeys"]
             apiKeys = list(collection.find({}).sort("createdAt", -1))
             tempAllApiKeys: list[dict[str, str]] = []
             for apiKey in apiKeys:
@@ -21,7 +21,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                         "status": apiKey.get("status", "PENDING"),
                         "disabled": apiKey.get("disabled", False),
                         "deleted": apiKey.get("deleted", False),
-                        "createdAt": apiKey.get("createdAt", ""),
+                        "createdAt": str(apiKey.get("createdAt", "")),
                     }
                 )
             return JSONResponse(

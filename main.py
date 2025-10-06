@@ -46,11 +46,12 @@ async def websocket_endpoint(websocket: WebSocket, email: str):
                 await websocket.send_text(json.dumps({"type": "ping"}))
                 continue
 
-    except WebSocketDisconnect:
+    except WebSocketDisconnect as e:
+        print(e)
         await webSocket.disconnect(email)
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=False)

@@ -73,7 +73,7 @@ class ApiKeyServices(ApiKeyServicesImpl):
             key=generatedKey.key,
             hash=generatedKey.hash,
             salt=Binary(generatedKey.salt),
-            name="",
+            name=request.name,
         )
 
         apiKeyCollection = self.db["apiKeys"]

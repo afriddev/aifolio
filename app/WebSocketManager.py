@@ -25,6 +25,12 @@ class WebSocketManager(WebSocketManagerImpl):
     
     async def connect(self, websocket: WebSocket, email: str):
         async with self.lock:
+            if email in self.active:
+                # Close the previous connection explicitly
+                await self.active[email].close()
+                del self.active[email]  # Clean up immediately
+                print(f"🔄 {email} previous connection closed")
+            
             await websocket.accept()
             self.active[email] = websocket
             print(f"✅ {email} connected")
