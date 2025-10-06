@@ -1,9 +1,9 @@
 from .ChatControllerServices import ChatControllerServices
-from .ApiKeyControllerService import ApiKeyControllerServices
+from .ApiKeyService import ApiKeyServices
 from .WebSocketControllerService import WebSocketControllerService
 
 __all__ = [
     "ChatControllerServices",
-    "ApiKeyControllerServices",
+    "ApiKeyServices",
     "WebSocketControllerService",
 ]

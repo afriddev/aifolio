@@ -42,15 +42,21 @@ class ChatMessageSchema(TimeStampedModel):
     liked: bool | None = False
     disLiked: bool | None = False
 
+
 class ApiKeySchema(TimeStampedModel):
     id: str
-    chatId:str
+    name: str
+    chatId: str
     key: str
     hash: str
     salt: bytes
+    status: str = "PENDING"
+    disabled: bool = False
+    deleted: bool = False
 
-class ContextSchema(TimeStampedModel):
+
+class ApiKeyDataSchema(TimeStampedModel):
     id: str
+    apiKeyId:str
     chatId: str
-    context: str
-    description: str
+    data: str

@@ -11,7 +11,7 @@ class GenerateApiKeyResponseModel(BaseModel):
 class HandleContextKeyGenerationRequestModel(BaseModel):
     chatId: str
     context:str
-    description:str
+    name:str
 
 
 

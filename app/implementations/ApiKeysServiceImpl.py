@@ -24,7 +24,7 @@ class HandleKeyInterfaceImpl(ABC):
         pass
 
 
-class ApiKeyControllerServicesImpl(ABC):
+class ApiKeyServicesImpl(ABC):
 
     @abstractmethod
     def HandleContextKeyGeneration(

@@ -3,18 +3,16 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import hmac
 import string
-from string import Template
 import os
 from bson.binary import Binary
-from httpcore import request
 from app.models import (
     GenerateApiKeyResponseModel,
     HandleContextKeyGenerationRequestModel,
 )
 from app.services.EmailService import EmailService
 from database import mongoClient
-from app.implementations import ApiKeyControllerServicesImpl, HandleKeyInterfaceImpl
-from app.schemas import ApiKeySchema, ContextSchema
+from app.implementations import ApiKeyServicesImpl, HandleKeyInterfaceImpl
+from app.schemas import ApiKeySchema, ApiKeyDataSchema
 from uuid import uuid4
 
 
@@ -56,7 +54,7 @@ class HandleKeyInterface(HandleKeyInterfaceImpl):
         return hmac.compare_digest(provided_hash.encode(), storedHash.encode())
 
 
-class ApiKeyControllerServices(ApiKeyControllerServicesImpl):
+class ApiKeyServices(ApiKeyServicesImpl):
 
     def __init__(self) -> None:
         self.handleKeyInterface = HandleKeyInterface()
@@ -67,39 +65,39 @@ class ApiKeyControllerServices(ApiKeyControllerServicesImpl):
         self, request: HandleContextKeyGenerationRequestModel
     ) -> None:
         generatedKey = self.handleKeyInterface.GenerateKey()
+        tempApiKeyId = str(uuid4())
 
         tempApiSchema = ApiKeySchema(
-            id=str(uuid4()),
+            id=tempApiKeyId,
             chatId=request.chatId,
             key=generatedKey.key,
             hash=generatedKey.hash,
             salt=Binary(generatedKey.salt),
+            name="",
         )
 
-        apiKeyCollection = self.db["contextKeys"]
+        apiKeyCollection = self.db["apiKeys"]
         apiKeyCollection.update_one(
             {"chatId": tempApiSchema.chatId},
             {"$set": tempApiSchema.model_dump()},
             upsert=True,
         )
-        contextSchema = ContextSchema(
+        tempApiKeyDataSchema = ApiKeyDataSchema(
             id=str(uuid4()),
+            apiKeyId=tempApiKeyId,
             chatId=request.chatId,
-            context=request.context,
-            description=request.description,
+            data=request.context,
         )
 
-        contextCollection = self.db["contextData"]
+        contextCollection = self.db["apiKeyData"]
         contextCollection.update_one(
-            {"chatId": contextSchema.chatId},
-            {"$set": contextSchema.model_dump()},
+            {"chatId": tempApiKeyDataSchema.chatId},
+            {"$set": tempApiKeyDataSchema.model_dump()},
             upsert=True,
         )
 
         title = "AiFolio API Key: Ready for Your Chatbot Integration!"
-        subject = (
-            f"AiFolio API Key Generated for '{request.description}' – Check Your Setup"
-        )
+        subject = f"AiFolio API Key Generated for '{request.name}' – Check Your Setup"
 
         masked = (
             (generatedKey.key[:4] + "…" + generatedKey.key[-4:])
@@ -191,7 +189,7 @@ class ApiKeyControllerServices(ApiKeyControllerServicesImpl):
 </html>
 """
         ).substitute(
-            description=request.description,
+            description=request.name,
             key=generatedKey.key,
             masked_key=masked,
             year=2025,

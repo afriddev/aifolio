@@ -91,7 +91,7 @@ Single JSON object:
 {
   "response": {
     "contentForRag": "<ALL_RETAINED_USER_CONTENT_AS_PLAINTEXT_WITH_ORIGINAL_LINEBREAKS>",
-    "shortDescription": "<5-10 word concise descriptor>"
+    "name": "<2 word concise descriptor>"
   }
 }
 
@@ -117,8 +117,8 @@ EXTRACTION RULES (strict):
 4. Edits:
    - Apply user edits in order; use final version if replacing prior text.
 
-5. shortDescription:
-   - 5–10 words describing retained content (e.g., "Full-stack developer portfolio — React/Node projects").
+5. name:
+   - 2 words describing retained content.
    - No private data/secrets.
 
 6. Truncation:
@@ -130,7 +130,7 @@ VALIDATION:
 {
   "response": {
     "contentForRag": "",
-    "shortDescription": ""
+    "name": ""
   }
 }
 

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
-from app.controllers import ChatRouter, WebSocketRouterController
+from app.controllers import ChatRouter, WebSocketRouterController, ApiKeysRouter
 from app import webSocket
 from fastapi import WebSocket, WebSocketDisconnect
 import json
@@ -29,6 +29,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(ChatRouter, prefix="/api/v1")
+app.include_router(ApiKeysRouter, prefix="/api/v1")
 
 webSocketRouter = WebSocketRouterController()
 
@@ -44,7 +45,6 @@ async def websocket_endpoint(websocket: WebSocket, email: str):
             except asyncio.TimeoutError:
                 await websocket.send_text(json.dumps({"type": "ping"}))
                 continue
-            
 
     except WebSocketDisconnect:
         await webSocket.disconnect(email)

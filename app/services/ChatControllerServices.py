@@ -18,7 +18,7 @@ from typing import Any
 import json
 from app.WebSocketManager import webSocket
 import time
-from app.services.ApiKeyControllerService import ApiKeyControllerServices
+from app.services.ApiKeyService import ApiKeyServices
 from app.models import HandleContextKeyGenerationRequestModel
 
 
@@ -26,7 +26,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
     def __init__(self):
         self.db = mongoClient["aifolio"]
         self.chatService = ChatServices()
-        self.apiKeyService = ApiKeyControllerServices()
+        self.apiKeyService = ApiKeyServices()
         self.docService = DocServices()
 
     async def GenerateChatSummary(
@@ -118,7 +118,6 @@ class ChatControllerServices(ChatControllerServiceImpl):
     async def Chat(self, request: ChatRequestModel) -> StreamingResponse:
 
         try:
-
 
             if request.titleGenerated is False:
                 asyncio.create_task(
@@ -298,7 +297,6 @@ class ChatControllerServices(ChatControllerServiceImpl):
                         "content": chat.get("content", ""),
                         "visible": chat.get("visible", ""),
                         "timeAndDate": str(chat.get("createdAt", "")),
-                        
                     }
                 )
             return JSONResponse(
@@ -416,9 +414,9 @@ class ChatControllerServices(ChatControllerServiceImpl):
                         "type": "object",
                         "properties": {
                             "contentForRag": {"type": "string"},
-                            "shortDescription": {"type": "string"},
+                            "name": {"type": "string"},
                         },
-                        "required": ["contentForRag", "shortDescription"],
+                        "required": ["contentForRag", "name"],
                         "additionalProperties": False,
                     },
                 )
@@ -433,14 +431,12 @@ class ChatControllerServices(ChatControllerServiceImpl):
                         messages, chatId=chatId, retryLimit=retryLimit + 1
                     )
             contentForRag = chatResponse.get("response", {}).get("contentForRag", "")
-            shortDescription = chatResponse.get("response", {}).get(
-                "shortDescription", ""
-            )
+            name = chatResponse.get("response", {}).get("name", "")
             self.apiKeyService.HandleContextKeyGeneration(
                 request=HandleContextKeyGenerationRequestModel(
                     chatId=chatId,
                     context=contentForRag,
-                    description=shortDescription,
+                    name=name,
                 )
             )
 

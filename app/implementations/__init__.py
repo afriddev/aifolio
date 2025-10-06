@@ -1,16 +1,21 @@
 from .ChatControllerServiceImpl import ChatControllerServiceImpl
 from .EmailServiceImpl import EmailServiceImpl
-from .ApiKeyControllerServiceImpl import (
-    ApiKeyControllerServicesImpl,
+from .ApiKeysServiceImpl import (
+    ApiKeyServicesImpl,
     HandleKeyInterfaceImpl,
 )
-from .WebSocketControllerImpl import WebSocketControllerImpl,WebSocketRouterControllerImpl
+from .WebSocketControllerImpl import (
+    WebSocketControllerImpl,
+    WebSocketRouterControllerImpl,
+)
+from .ApiKeysControllerServiceImpl import ApiKeysControllerServiceImpl
 
 __all__ = [
     "ChatControllerServiceImpl",
     "EmailServiceImpl",
-    "ApiKeyControllerServicesImpl",
+    "ApiKeyServicesImpl",
     "WebSocketControllerImpl",
     "HandleKeyInterfaceImpl",
-    "WebSocketRouterControllerImpl"
+    "WebSocketRouterControllerImpl",
+    "ApiKeysControllerServiceImpl",
 ]
