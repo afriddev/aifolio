@@ -17,10 +17,10 @@ class ChatFileSchema(TimeStampedModel):
     mediaType: str
     data: str
     size: int
-    type = "chat"
+    type: str = "chat"
     content: str | None = None
     messageId: str
-    chatId: str 
+    chatId: str
     tokensCount: int | None = 0
 
 
@@ -30,7 +30,7 @@ class ContextFileSchema(TimeStampedModel):
     mediaType: str
     data: str
     size: int
-    type = "context"
+    type: str = "context"
     content: str | None = None
     tokensCount: int | None = 0
 
@@ -58,7 +58,7 @@ class ChatMessageSchema(TimeStampedModel):
 
 class ApiKeySchema(TimeStampedModel):
     id: str
-    fileId:str
+    fileId: str
     name: str
     key: str
     hash: str

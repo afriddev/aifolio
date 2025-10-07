@@ -164,7 +164,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
             response: Any = await self.chatService.Chat(
                 modelParams=ChatServiceRequestModel(
                     messages=chatMessages,
-                    maxCompletionTokens=3000,
+                    maxCompletionTokens=30000,
                     model=OpenaiChatModelsEnum.QWEN_NEXT_80B_250K_INSTRUCT,
                     method="openai",
                     temperature=0.5,

@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
-from app.models import ChatRequestModel, FileModel, GenerateApiKeyResponseModel
+from app.models import ChatRequestModel, FileModel
 from fastapi.responses import StreamingResponse, JSONResponse
-from models import ChatMessageModel
 from app.schemas import ChatMessageSchema, ChatSchema
 
 
@@ -41,15 +40,4 @@ class ChatControllerServiceImpl(ABC):
 
     @abstractmethod
     async def UploadFile(self, request: FileModel, retryLimit: int) -> JSONResponse:
-        pass
-
-    @abstractmethod
-    async def GenerateChunkContent(
-        self,
-        messages: list[ChatMessageModel],
-        keyDetails: GenerateApiKeyResponseModel,
-        chatId: str,
-        keyId: str,
-        retryLimit: int,
-    ) -> None:
         pass
