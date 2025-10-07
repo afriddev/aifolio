@@ -12,14 +12,19 @@ from app.utils import (
 )
 from database import mongoClient
 from uuid import uuid4
-from app.schemas import DocumentsFileSchema, ChatMessageSchema, ChatSchema
+from app.schemas import DocumentsFileSchema, ChatMessageSchema, ChatSchema, ApiKeySchema
 from app.ChatState import ChatUsedTool, ChatEvent, ChatContent, ChatReasoning
 from typing import Any
 import json
 from app.WebSocketManager import webSocket
 import time
 from app.services.ApiKeyService import ApiKeyServices
-from app.models import HandleContextKeyGenerationRequestModel
+from app.models import (
+    HandleContextKeyGenerationRequestModel,
+    GenerateApiKeyResponseModel,
+)
+from app.services.ApiKeyService import HandleKeyInterface
+from bson.binary import Binary
 
 
 class ChatControllerServices(ChatControllerServiceImpl):
@@ -28,6 +33,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
         self.chatService = ChatServices()
         self.apiKeyService = ApiKeyServices()
         self.docService = DocServices()
+        self.handleKeyInterface = HandleKeyInterface()
 
     async def GenerateChatSummary(
         self,
@@ -157,8 +163,8 @@ class ChatControllerServices(ChatControllerServiceImpl):
                     maxCompletionTokens=3000,
                     model=OpenaiChatModelsEnum.QWEN_NEXT_80B_250K_INSTRUCT,
                     method="openai",
-                    temperature=0.2,
-                    topP=0.9,
+                    temperature=0.5,
+                    topP=1.0,
                     stream=True,
                     tools=[
                         {
@@ -209,8 +215,14 @@ class ChatControllerServices(ChatControllerServiceImpl):
                         content="Generated your key, you will get the key by email.",
                     )
                     self.SaveChatMessage(tempToolChatMessage)
+                    generatedKey = self.handleKeyInterface.GenerateKey()
+                    tempApiKeyId = str(uuid4())
                     await self.GenerateResumeContent(
-                        messages=chatMessages, chatId=request.chatId, retryLimit=0
+                        messages=chatMessages,
+                        chatId=request.chatId,
+                        keyDetails=generatedKey,
+                        keyId=tempApiKeyId,
+                        retryLimit=0,
                     )
                 del ChatUsedTool[request.messageId]
                 del ChatEvent[request.messageId]
@@ -390,12 +402,48 @@ class ChatControllerServices(ChatControllerServiceImpl):
             )
 
     async def GenerateResumeContent(
-        self, messages: list[ChatMessageModel], chatId: str, retryLimit: int
+        self,
+        messages: list[ChatMessageModel],
+        keyDetails: GenerateApiKeyResponseModel,
+        chatId: str,
+        keyId: str,
+        retryLimit: int,
     ) -> None:
+        apiKeyCollection = self.db["apiKeys"]
+
         if retryLimit >= 3:
+            tempApiSchema = ApiKeySchema(
+                id=keyId,
+                chatId=chatId,
+                key=keyDetails.key,
+                hash=keyDetails.hash,
+                salt=Binary(keyDetails.salt),
+                name="",
+                status="ERROR",
+            )
+
+            apiKeyCollection.update_one(
+                {"chatId": tempApiSchema.chatId},
+                {"$set": tempApiSchema.model_dump()},
+                upsert=True,
+            )
             return
 
         try:
+            tempApiSchema = ApiKeySchema(
+                id=keyId,
+                chatId=chatId,
+                key=keyDetails.key,
+                hash=keyDetails.hash,
+                salt=Binary(keyDetails.salt),
+                name="",
+                status="PENDING",
+            )
+            apiKeyCollection.update_one(
+                {"chatId": tempApiSchema.chatId},
+                {"$set": tempApiSchema.model_dump()},
+                upsert=True,
+            )
             messages.pop(0)
             messages.append(
                 ChatMessageModel(
@@ -430,12 +478,18 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 except Exception as e:
                     time.sleep(3)
                     await self.GenerateResumeContent(
-                        messages, chatId=chatId, retryLimit=retryLimit + 1
+                        messages,
+                        chatId=chatId,
+                        keyDetails=keyDetails,
+                        keyId=keyId,
+                        retryLimit=retryLimit + 1,
                     )
             contentForRag = chatResponse.get("response", {}).get("contentForRag", "")
             name = chatResponse.get("response", {}).get("name", "")
             self.apiKeyService.HandleContextKeyGeneration(
                 request=HandleContextKeyGenerationRequestModel(
+                    keyId=keyId,
+                    keyDetails=keyDetails,
                     chatId=chatId,
                     context=contentForRag,
                     name=name,
@@ -446,5 +500,9 @@ class ChatControllerServices(ChatControllerServiceImpl):
             print(e)
             time.sleep(3)
             await self.GenerateResumeContent(
-                messages, chatId=chatId, retryLimit=retryLimit + 1
+                messages,
+                chatId=chatId,
+                keyDetails=keyDetails,
+                keyId=keyId,
+                retryLimit=retryLimit + 1,
             )

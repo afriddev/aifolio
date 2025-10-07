@@ -9,6 +9,8 @@ class GenerateApiKeyResponseModel(BaseModel):
 
 
 class HandleContextKeyGenerationRequestModel(BaseModel):
+    keyId:str
+    keyDetails:GenerateApiKeyResponseModel
     chatId: str
     context:str
     name:str

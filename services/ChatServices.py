@@ -100,10 +100,6 @@ class ChatServices(ChatServicesImpl):
                     reasoningStartIndex = 0
                     try:
                         async for chunk in chatCompletion:
-                            print(chunk)
-
-                            
-
                             if getattr(chunk, "choices", None):
                                 delta = getattr(chunk.choices[0], "delta", None)
                                 if delta:

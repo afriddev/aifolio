@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from app.models import ChatRequestModel, FileModel
+from app.models import ChatRequestModel, FileModel, GenerateApiKeyResponseModel
 from fastapi.responses import StreamingResponse, JSONResponse
 from models import ChatMessageModel
 from app.schemas import ChatMessageSchema, ChatSchema
@@ -47,6 +47,11 @@ class ChatControllerServiceImpl(ABC):
 
     @abstractmethod
     async def GenerateResumeContent(
-        self, messages: list[ChatMessageModel], chatId: str, retryLimit: int
+        self,
+        messages: list[ChatMessageModel],
+        keyDetails: GenerateApiKeyResponseModel,
+        chatId: str,
+        keyId: str,
+        retryLimit: int,
     ) -> None:
         pass

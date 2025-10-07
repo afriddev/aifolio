@@ -121,8 +121,9 @@ EXTRACTION RULES (strict):
    - Apply user edits in order; use final version if replacing prior text.
 
 5. name:
-   - 2 words describing retained content.
+   - 2-4 words describing retained content and a good title eg(Afrid resume,Google faq,Medical question).
    - No private data/secrets.
+   - Include main Entity eg: names,companies, topics mentioned. etc..
 
 6. Truncation:
    - If exceeds limits, include max possible then append: "\n\n[TRUNCATED: due to output limit]"

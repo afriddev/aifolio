@@ -64,16 +64,15 @@ class ApiKeyServices(ApiKeyServicesImpl):
     def HandleContextKeyGeneration(
         self, request: HandleContextKeyGenerationRequestModel
     ) -> None:
-        generatedKey = self.handleKeyInterface.GenerateKey()
-        tempApiKeyId = str(uuid4())
 
         tempApiSchema = ApiKeySchema(
-            id=tempApiKeyId,
+            id=request.keyId,
             chatId=request.chatId,
-            key=generatedKey.key,
-            hash=generatedKey.hash,
-            salt=Binary(generatedKey.salt),
-            name=request.name,
+            key=request.keyDetails.key,
+            hash=request.keyDetails.hash,
+            salt=Binary(request.keyDetails.salt),
+            name="",
+            status="ACTIVE",
         )
 
         apiKeyCollection = self.db["apiKeys"]
@@ -84,7 +83,7 @@ class ApiKeyServices(ApiKeyServicesImpl):
         )
         tempApiKeyDataSchema = ApiKeyDataSchema(
             id=str(uuid4()),
-            apiKeyId=tempApiKeyId,
+            apiKeyId=tempApiSchema.id,
             chatId=request.chatId,
             data=request.context,
         )
@@ -100,9 +99,9 @@ class ApiKeyServices(ApiKeyServicesImpl):
         subject = f"AiFolio API Key Generated for '{request.name}' – Check Your Setup"
 
         masked = (
-            (generatedKey.key[:4] + "…" + generatedKey.key[-4:])
-            if len(generatedKey.key) > 10
-            else generatedKey.key
+            (request.keyDetails.key[:4] + "…" + request.keyDetails.key[-4:])
+            if len(request.keyDetails.key) > 10
+            else request.keyDetails.key
         )
         from string import Template
 
@@ -190,7 +189,7 @@ class ApiKeyServices(ApiKeyServicesImpl):
 """
         ).substitute(
             description=request.name,
-            key=generatedKey.key,
+            key=request.keyDetails.key,
             masked_key=masked,
             year=2025,
         )
