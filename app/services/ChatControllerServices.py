@@ -7,12 +7,11 @@ from enums import OpenaiChatModelsEnum, ChatMessageRoleEnum, CerebrasChatModelEn
 from services import ChatServices, DocServices
 from app.utils import (
     CHAT_CONTROLLER_CHAT_PROMPT,
-    GENERATE_CONTENT_PROMPT,
     CHAT_SUMMARY_PROMPT,
 )
 from database import mongoClient
 from uuid import uuid4
-from app.schemas import ChatFileSchema, ChatMessageSchema, ChatSchema, ApiKeySchema
+from app.schemas import ChatFileSchema, ChatMessageSchema, ChatSchema
 from app.ChatState import (
     ChatUsedTool,
     ChatEvent,
@@ -27,13 +26,8 @@ from typing import Any
 import json
 from app.WebSocketManager import webSocket
 import time
-from app.services.ApiKeyService import ApiKeyServices
-from app.models import (
-    HandleContextKeyGenerationRequestModel,
-    GenerateApiKeyResponseModel,
-)
+
 from app.services.ApiKeyService import HandleKeyInterface
-from bson.binary import Binary
 from app.utils import AppUtils
 
 
@@ -41,7 +35,6 @@ class ChatControllerServices(ChatControllerServiceImpl):
     def __init__(self):
         self.db = mongoClient["aifolio"]
         self.chatService = ChatServices()
-        self.apiKeyService = ApiKeyServices()
         self.docService = DocServices()
         self.handleKeyInterface = HandleKeyInterface()
         self.appUtils = AppUtils()

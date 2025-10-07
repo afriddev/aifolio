@@ -80,63 +80,25 @@ CHAT_SUMMARY_PROMPT = """
 """
 
 GENERATE_CONTENT_PROMPT = """
-SYSTEM: Strict extraction for RAG — produce only one JSON object with two fields.
+SYSTEM: You are a precise grammar and spelling corrector for RAG content. 
+Produce only one valid JSON object.
 
-Purpose:
-Extract ONLY user's substantive content for RAG; produce concise short descriptor. Remove chit-chat, assistant replies, conversational noise.
-
-INPUT:
-Full conversation (messages: role user|assistant|system) + uploaded files.
-
-OUTPUT (exact — nothing else):
-Single JSON object:
-
+# Output format
 {
   "response": {
-    "contentForRag": "<ALL_RETAINED_USER_CONTENT_AS_PLAINTEXT_WITH_ORIGINAL_LINEBREAKS>",
-    "name": "<2 word concise descriptor>"
+    "content": "<USER_CONTENT_WITH_GRAMMAR_AND_SPELLING_FIXED>"
   }
 }
 
-EXTRACTION RULES (strict):
-1. Keep ONLY:
-   - User substantive content (docs, projects, code, file text, portfolios, FAQs, manuals, policies, etc.).
-   - User edit instructions adding/changing substantive content.
-   - Uploaded file text.
+# Rules
+- Correct only grammar and spelling mistakes.
+- Do NOT summarize, shorten, rewrite, or rephrase sentences.
+- Keep all original wording, meaning, formatting, and line breaks.
+- Preserve punctuation, bullet points, tables, code blocks, and structure exactly.
+- Do NOT change tone or style.
+- Escape quotes and newlines so the JSON is valid.
+- Output **only** the JSON object — no explanations, no notes, no commentary.
 
-2. Drop EVERYTHING ELSE:
-   - All assistant messages (replies, suggestions, greetings).
-   - System/tool messages, logs.
-   - User chit-chat/one-liners ("hi", "thanks", "ok") unless containing content.
-
-3. Preserve verbatim:
-   - NO summarize/condense/paraphrase/add details.
-   - NO modify wording/order/line counts, except:
-     • Redact secrets/API keys/SSNs → [REDACTED_SECRET].
-     • Copyrighted text (e.g., lyrics) → [REDACTED_COPYRIGHT].
-   - If user describes 10 lines, retain ALL 10 lines unchanged.
-   - Read/process updates chronologically; include latest versions fully.
-
-4. Edits:
-   - Apply user edits in order; use final version if replacing prior text.
-
-5. name:
-   - 2-4 words describing retained content and a good title eg(Afrid resume,Google faq,Medical question).
-   - No private data/secrets.
-   - Include main Entity eg: names,companies, topics mentioned. etc..
-
-6. Truncation:
-   - If exceeds limits, include max possible then append: "\n\n[TRUNCATED: due to output limit]"
-
-VALIDATION:
-- Valid JSON (escape quotes/newlines).
-- ONLY the JSON object — nothing else.
-{
-  "response": {
-    "contentForRag": "",
-    "name": ""
-  }
-}
-
-END
+# Validation
+Output must be exactly one valid JSON object.
 """

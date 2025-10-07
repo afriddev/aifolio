@@ -7,14 +7,17 @@ from fastapi.responses import JSONResponse
 from services import DocServices
 from uuid import uuid4
 from app.schemas import ContextFileSchema
-from app.schemas import ApiKeySchema
+from app.schemas import ApiKeySchema, ApiKeyDataSchema
 from services import ChatServices
 from models import ChatMessageModel, ChatRequestModel
 
 from enums import ChatMessageRoleEnum, CerebrasChatModelEnum
 from bson.binary import Binary
 import json
-from typing import Any,cast
+from typing import Any
+import time
+from app.services.ApiKeyService import HandleKeyInterface
+import asyncio
 
 
 class ApiKeysControllerService(ApiKeysControllerServiceImpl):
@@ -23,6 +26,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
         self.appUtils = AppUtils()
         self.docService = DocServices()
         self.chatService = ChatServices()
+        self.keyInterface = HandleKeyInterface()
 
     def GetAllApiKeys(self) -> JSONResponse:
         try:
@@ -119,66 +123,44 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 },
             )
 
-    async def GenerateApiKey(self, request: GenerateApiKeyRequestModel) -> JSONResponse:
-
+    async def HandleFileProcessing(self, keyId: str, retryLimit: int) -> None:
         apiKeyCollection = self.db["apiKeys"]
+        contextFileCollection = self.db["contextFiles"]
+        fileId = contextFileCollection.find_one({"id": keyId}).get("fileId")
+        fileContent = self.GetFileContent(fileId)
 
         if retryLimit >= 3:
-            tempApiSchema = ApiKeySchema(
-                id=keyId,
-                chatId=chatId,
-                key=keyDetails.key,
-                hash=keyDetails.hash,
-                salt=Binary(keyDetails.salt),
-                name="",
-                status="ERROR",
-            )
-
             apiKeyCollection.update_one(
-                {"chatId": tempApiSchema.chatId},
-                {"$set": tempApiSchema.model_dump()},
+                {"id": keyId},
+                {"$set": {"status": "ERROR"}},
                 upsert=True,
             )
             return
 
         try:
-            tempApiSchema = ApiKeySchema(
-                id=keyId,
-                chatId=chatId,
-                key=keyDetails.key,
-                hash=keyDetails.hash,
-                salt=Binary(keyDetails.salt),
-                name="",
-                status="PENDING",
-            )
-            apiKeyCollection.update_one(
-                {"chatId": tempApiSchema.chatId},
-                {"$set": tempApiSchema.model_dump()},
-                upsert=True,
-            )
-            messages.pop(0)
-            messages.append(
-                ChatMessageModel(
-                    role=ChatMessageRoleEnum.SYSTEM,
-                    content=GENERATE_CONTENT_PROMPT,
-                )
-            )
             response: Any = await self.chatService.Chat(
                 modelParams=ChatRequestModel(
-                    messages=messages,
+                    messages=[
+                        ChatMessageModel(
+                            role=ChatMessageRoleEnum.SYSTEM,
+                            content=GENERATE_CONTENT_PROMPT,
+                        ),
+                        ChatMessageModel(
+                            role=ChatMessageRoleEnum.USER, content=fileContent
+                        ),
+                    ],
                     maxCompletionTokens=8000,
                     model=CerebrasChatModelEnum.GPT_OSS_120B,
                     method="cerebras",
-                    temperature=0.3,
+                    temperature=0.1,
                     topP=0.9,
                     stream=False,
                     responseFormat={
                         "type": "object",
                         "properties": {
-                            "contentForRag": {"type": "string"},
-                            "name": {"type": "string"},
+                            "content": {"type": "string"},
                         },
-                        "required": ["contentForRag", "name"],
+                        "required": ["content"],
                         "additionalProperties": False,
                     },
                 )
@@ -189,32 +171,60 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                     chatResponse = json.loads(response.content)
                 except Exception as e:
                     time.sleep(3)
-                    await self.GenerateChunkContent(
-                        messages,
-                        chatId=chatId,
-                        keyDetails=keyDetails,
-                        keyId=keyId,
-                        retryLimit=retryLimit + 1,
-                    )
-            contentForRag = chatResponse.get("response", {}).get("contentForRag", "")
-            name = chatResponse.get("response", {}).get("name", "")
-            self.apiKeyService.HandleContextKeyGeneration(
-                request=HandleContextKeyGenerationRequestModel(
-                    keyId=keyId,
-                    keyDetails=keyDetails,
-                    chatId=chatId,
-                    context=contentForRag,
-                    name=name,
-                )
+                    await self.HandleFileProcessing(keyId, 0)
+            content = chatResponse.get("response", {}).get("content", "")
+            apiKeyDataSchema = ApiKeyDataSchema(
+                apiKeyId=keyId,
+                data=content,
+                id=str(uuid4()),
+            )
+            apiKeyDataCollection = self.db["apiKeyData"]
+            apiKeyDataCollection.insert_one(apiKeyDataSchema.model_dump())
+            apiKeyCollection.update_one(
+                {"id": keyId},
+                {"$set": {"status": "ACTIVE"}},
+                upsert=True,
             )
 
         except Exception as e:
             print(e)
-            time.sleep(3)
-            await self.GenerateChunkContent(
-                messages,
-                chatId=chatId,
-                keyDetails=keyDetails,
-                keyId=keyId,
-                retryLimit=retryLimit + 1,
+            time.sleep(60)
+        await self.HandleFileProcessing(keyId, 0)
+
+    def GetFileContent(self, fileId: str) -> str:
+        collection = self.db["contextFiles"]
+        fileData = collection.find_one({"id": fileId})
+        if fileData:
+            return fileData.get("content", "")
+        return ""
+
+    async def GenerateApiKey(self, request: GenerateApiKeyRequestModel) -> JSONResponse:
+
+        if request.keyId is None:
+            keyId = str(uuid4())
+            fileId = request.fileId
+            keyDetails = self.keyInterface.GenerateKey()
+            tempApiSchema = ApiKeySchema(
+                id=keyId,
+                fileId=fileId,
+                key=keyDetails.key,
+                hash=keyDetails.hash,
+                salt=Binary(keyDetails.salt),
+                name=request.name,
+                status="PENDING",
+            )
+            collection = self.db["apiKeys"]
+            collection.insert_one(tempApiSchema.model_dump())
+            asyncio.create_task(self.HandleFileProcessing(keyId, 0))
+            return JSONResponse(
+                status_code=200,
+                content={"data": "SUCCESS"},
+            )
+
+        else:
+            keyId = request.keyId
+            asyncio.create_task(self.HandleFileProcessing(keyId, 0))
+            return JSONResponse(
+                status_code=200,
+                content={"data": "SUCCESS"},
             )

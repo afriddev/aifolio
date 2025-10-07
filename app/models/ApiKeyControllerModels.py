@@ -8,17 +8,14 @@ class GenerateApiKeyResponseModel(BaseModel):
     salt:bytes
 
 
-class HandleContextKeyGenerationRequestModel(BaseModel):
-    keyId:str
-    keyDetails:GenerateApiKeyResponseModel
-    chatId: str
-    context:str
-    name:str
-
 class UpdateApiKeyRequestModel(BaseModel):
     id:str
     method:str
 
 class GenerateApiKeyRequestModel(BaseModel):
-    id:str
+    fileId:str
+    keyId:str | None = None 
     name:str
+
+class HandleFileProcessingRequestModel(BaseModel):
+    id:str

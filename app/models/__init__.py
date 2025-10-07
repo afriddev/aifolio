@@ -1,7 +1,6 @@
 from .ChatControllerModels import ChatRequestModel, FileModel, DeleteChatRequestModel
 from .ApiKeyControllerModels import (
     GenerateApiKeyResponseModel,
-    HandleContextKeyGenerationRequestModel,
 )
 from .WebSocketControllerModels import HandleLikeRequestModel
 from .ApiKeyControllerModels import UpdateApiKeyRequestModel, GenerateApiKeyRequestModel
@@ -11,7 +10,6 @@ __all__ = [
     "FileModel",
     "DeleteChatRequestModel",
     "GenerateApiKeyResponseModel",
-    "HandleContextKeyGenerationRequestModel",
     "HandleLikeRequestModel",
     "UpdateApiKeyRequestModel",
     "GenerateApiKeyRequestModel",
