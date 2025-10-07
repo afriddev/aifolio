@@ -15,7 +15,9 @@ class HandleContextKeyGenerationRequestModel(BaseModel):
     context:str
     name:str
 
-
+class UpdateApiKeyRequestModel(BaseModel):
+    id:str
+    method:str
 
 
 
