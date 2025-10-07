@@ -11,15 +11,29 @@ class TimeStampedModel(BaseModel):
     updatedAt: datetime = Field(default_factory=utcNow)
 
 
-class DocumentsFileSchema(TimeStampedModel):
+class ChatFileSchema(TimeStampedModel):
     id: str
     name: str
     mediaType: str
     data: str
     size: int
+    type = "chat"
     content: str | None = None
     messageId: str
     chatId: str
+    tokensCount: int | None = 0
+
+
+class ContextFileSchema(TimeStampedModel):
+    id: str
+    name: str
+    mediaType: str
+    data: str
+    size: int
+    type = "context"
+    content: str | None = None
+
+    tokensCount: int | None = 0
 
 
 class ChatSchema(TimeStampedModel):
@@ -46,7 +60,6 @@ class ChatMessageSchema(TimeStampedModel):
 class ApiKeySchema(TimeStampedModel):
     id: str
     name: str
-    chatId: str
     key: str
     hash: str
     salt: bytes
@@ -57,6 +70,5 @@ class ApiKeySchema(TimeStampedModel):
 
 class ApiKeyDataSchema(TimeStampedModel):
     id: str
-    apiKeyId:str
-    chatId: str
+    apiKeyId: str
     data: str

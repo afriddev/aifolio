@@ -15,8 +15,8 @@ class FileModel(BaseModel):
     mediaType: str
     data: str
     size: int
-    chatId: str
-    messageId: str
+    chatId: str | None = None
+    messageId: str | None = None
     emailId: str
 
 

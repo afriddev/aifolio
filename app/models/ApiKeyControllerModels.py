@@ -19,6 +19,6 @@ class UpdateApiKeyRequestModel(BaseModel):
     id:str
     method:str
 
-
-
-
+class GenerateApiKeyRequestModel(BaseModel):
+    id:str
+    name:str

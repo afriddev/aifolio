@@ -29,9 +29,7 @@ class ChatControllerServiceImpl(ABC):
     def SaveChat(self, request: ChatSchema, retryLimit: int) -> None:
         pass
 
-    @abstractmethod
-    def GetFileContent(self, fileId: str) -> str:
-        pass
+
 
     @abstractmethod
     def GetAllChats(self) -> JSONResponse:
@@ -46,7 +44,7 @@ class ChatControllerServiceImpl(ABC):
         pass
 
     @abstractmethod
-    async def GenerateResumeContent(
+    async def GenerateChunkContent(
         self,
         messages: list[ChatMessageModel],
         keyDetails: GenerateApiKeyResponseModel,

@@ -71,7 +71,7 @@ class ApiKeyServices(ApiKeyServicesImpl):
             key=request.keyDetails.key,
             hash=request.keyDetails.hash,
             salt=Binary(request.keyDetails.salt),
-            name="",
+            name=request.name,
             status="ACTIVE",
         )
 

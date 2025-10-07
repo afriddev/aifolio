@@ -12,8 +12,17 @@ from app.utils import (
 )
 from database import mongoClient
 from uuid import uuid4
-from app.schemas import DocumentsFileSchema, ChatMessageSchema, ChatSchema, ApiKeySchema
-from app.ChatState import ChatUsedTool, ChatEvent, ChatContent, ChatReasoning
+from app.schemas import ChatFileSchema, ChatMessageSchema, ChatSchema, ApiKeySchema
+from app.ChatState import (
+    ChatUsedTool,
+    ChatEvent,
+    ChatContent,
+    ChatReasoning,
+    ChatCompletionTokens,
+    ChatPromptTokens,
+    ChatTotalTokens,
+    ReasoningTokens,
+)
 from typing import Any
 import json
 from app.WebSocketManager import webSocket
@@ -25,6 +34,7 @@ from app.models import (
 )
 from app.services.ApiKeyService import HandleKeyInterface
 from bson.binary import Binary
+from app.utils import AppUtils
 
 
 class ChatControllerServices(ChatControllerServiceImpl):
@@ -34,6 +44,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
         self.apiKeyService = ApiKeyServices()
         self.docService = DocServices()
         self.handleKeyInterface = HandleKeyInterface()
+        self.appUtils = AppUtils()
 
     async def GenerateChatSummary(
         self,
@@ -206,26 +217,30 @@ class ChatControllerServices(ChatControllerServiceImpl):
 
                 self.SaveChatMessage(tempUserChatMessage)
                 self.SaveChatMessage(tempAssistentChatMessage)
-                if ChatUsedTool[request.messageId]:
-                    tempToolChatMessage = ChatMessageSchema(
-                        id=str(uuid4()),
-                        emailId=request.emailId,
-                        chatId=request.chatId,
-                        role=ChatMessageRoleEnum.ASSISTANT.value,
-                        content="Generated your key, you will get the key by email.",
-                    )
-                    self.SaveChatMessage(tempToolChatMessage)
-                    generatedKey = self.handleKeyInterface.GenerateKey()
-                    tempApiKeyId = str(uuid4())
-                    await self.GenerateResumeContent(
-                        messages=chatMessages,
-                        chatId=request.chatId,
-                        keyDetails=generatedKey,
-                        keyId=tempApiKeyId,
-                        retryLimit=0,
-                    )
+                # if ChatUsedTool[request.messageId]:
+                #     tempToolChatMessage = ChatMessageSchema(
+                #         id=str(uuid4()),
+                #         emailId=request.emailId,
+                #         chatId=request.chatId,
+                #         role=ChatMessageRoleEnum.ASSISTANT.value,
+                #         content="Generated your key, you will get the key by email.",
+                #     )
+                #     self.SaveChatMessage(tempToolChatMessage)
+                #     generatedKey = self.handleKeyInterface.GenerateKey()
+                #     tempApiKeyId = str(uuid4())
+                #     await self.GenerateChunkContent(
+                #         messages=chatMessages,
+                #         chatId=request.chatId,
+                #         keyDetails=generatedKey,
+                #         keyId=tempApiKeyId,
+                #         retryLimit=0,
+                #     )
                 del ChatUsedTool[request.messageId]
                 del ChatEvent[request.messageId]
+                del ChatCompletionTokens[request.messageId]
+                del ChatPromptTokens[request.messageId]
+                del ChatTotalTokens[request.messageId]
+                del ReasoningTokens[request.messageId]
 
             asyncio.create_task(CheckForToolExecution())
 
@@ -258,13 +273,6 @@ class ChatControllerServices(ChatControllerServiceImpl):
         except Exception as e:
             print(e)
             self.SaveChat(request, retryLimit + 1) if retryLimit < 3 else None
-
-    def GetFileContent(self, fileId: str) -> str:
-        collection = self.db["files"]
-        fileData = collection.find_one({"id": fileId})
-        if fileData:
-            return fileData.get("content", "")
-        return ""
 
     def GetAllChats(self) -> JSONResponse:
         try:
@@ -356,23 +364,32 @@ class ChatControllerServices(ChatControllerServiceImpl):
         try:
             fileId = uuid4()
             text, _ = self.docService.ExtractTextAndImagesFromPdf(request.data)
+            tokensCount = self.appUtils.CountTokens(text)
+            if tokensCount > 5000:
+                return JSONResponse(
+                    status_code=413,
+                    content={
+                        "data": "FILE_TOO_LARGE",
+                    },
+                )
 
-            dbSchema = DocumentsFileSchema(
+            dbSchema = ChatFileSchema(
                 name=request.name,
                 mediaType=request.mediaType,
                 data=request.data,
                 size=request.size,
                 id=str(fileId),
                 content=text,
-                messageId=request.messageId,
-                chatId=request.chatId,
+                messageId=request.messageId if request.messageId else str(uuid4()),
+                chatId=request.chatId if request.chatId else str(uuid4()),
+                tokensCount=tokensCount,
             )
 
-            collection = self.db["files"]
+            collection = self.db["chatFiles"]
             self.SaveChatMessage(
                 request=ChatMessageSchema(
-                    id=request.messageId,
-                    chatId=request.chatId,
+                    id=request.messageId if request.messageId else str(uuid4()),
+                    chatId=request.chatId if request.chatId else str(uuid4()),
                     role=ChatMessageRoleEnum.USER.value,
                     content=f"File name: {request.name}\n File Size:{request.size} File type:{request.mediaType} Extracted Text: {text}",
                     emailId=request.emailId,
@@ -386,7 +403,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 content={
                     "data": "SUCCESS",
                     "id": str(fileId),
-                    "text": f"File name: {request.name}\n File Size:{request.size} File type:{request.mediaType} Extracted Text: {text}",
+                    "text": f"File name: {request.name}\n File Size:{request.size} File type:{request.mediaType} Extracted Text: {text[1:100]}...",
                 },
             )
         except Exception as e:
@@ -401,108 +418,4 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 },
             )
 
-    async def GenerateResumeContent(
-        self,
-        messages: list[ChatMessageModel],
-        keyDetails: GenerateApiKeyResponseModel,
-        chatId: str,
-        keyId: str,
-        retryLimit: int,
-    ) -> None:
-        apiKeyCollection = self.db["apiKeys"]
-
-        if retryLimit >= 3:
-            tempApiSchema = ApiKeySchema(
-                id=keyId,
-                chatId=chatId,
-                key=keyDetails.key,
-                hash=keyDetails.hash,
-                salt=Binary(keyDetails.salt),
-                name="",
-                status="ERROR",
-            )
-
-            apiKeyCollection.update_one(
-                {"chatId": tempApiSchema.chatId},
-                {"$set": tempApiSchema.model_dump()},
-                upsert=True,
-            )
-            return
-
-        try:
-            tempApiSchema = ApiKeySchema(
-                id=keyId,
-                chatId=chatId,
-                key=keyDetails.key,
-                hash=keyDetails.hash,
-                salt=Binary(keyDetails.salt),
-                name="",
-                status="PENDING",
-            )
-            apiKeyCollection.update_one(
-                {"chatId": tempApiSchema.chatId},
-                {"$set": tempApiSchema.model_dump()},
-                upsert=True,
-            )
-            messages.pop(0)
-            messages.append(
-                ChatMessageModel(
-                    role=ChatMessageRoleEnum.SYSTEM,
-                    content=GENERATE_CONTENT_PROMPT,
-                )
-            )
-            response: Any = await self.chatService.Chat(
-                modelParams=ChatServiceRequestModel(
-                    messages=messages,
-                    maxCompletionTokens=8000,
-                    model=CerebrasChatModelEnum.GPT_OSS_120B,
-                    method="cerebras",
-                    temperature=0.3,
-                    topP=0.9,
-                    stream=False,
-                    responseFormat={
-                        "type": "object",
-                        "properties": {
-                            "contentForRag": {"type": "string"},
-                            "name": {"type": "string"},
-                        },
-                        "required": ["contentForRag", "name"],
-                        "additionalProperties": False,
-                    },
-                )
-            )
-            chatResponse: dict[str, Any] = {}
-            if response.content:
-                try:
-                    chatResponse = json.loads(response.content)
-                except Exception as e:
-                    time.sleep(3)
-                    await self.GenerateResumeContent(
-                        messages,
-                        chatId=chatId,
-                        keyDetails=keyDetails,
-                        keyId=keyId,
-                        retryLimit=retryLimit + 1,
-                    )
-            contentForRag = chatResponse.get("response", {}).get("contentForRag", "")
-            name = chatResponse.get("response", {}).get("name", "")
-            self.apiKeyService.HandleContextKeyGeneration(
-                request=HandleContextKeyGenerationRequestModel(
-                    keyId=keyId,
-                    keyDetails=keyDetails,
-                    chatId=chatId,
-                    context=contentForRag,
-                    name=name,
-                )
-            )
-
-        except Exception as e:
-            print(e)
-            time.sleep(3)
-            await self.GenerateResumeContent(
-                messages,
-                chatId=chatId,
-                keyDetails=keyDetails,
-                keyId=keyId,
-                retryLimit=retryLimit + 1,
-            )
+    
