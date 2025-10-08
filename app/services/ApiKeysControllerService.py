@@ -18,6 +18,8 @@ from typing import Any
 import time
 from app.services.ApiKeyService import HandleKeyInterface
 import asyncio
+from app.WebSocketManager import webSocket
+from datetime import datetime, timezone
 
 
 class ApiKeysControllerService(ApiKeysControllerServiceImpl):
@@ -31,7 +33,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
     def GetAllApiKeys(self) -> JSONResponse:
         try:
             collection = self.db["apiKeys"]
-            apiKeys = list(collection.find({}).sort("createdAt", -1))
+            apiKeys = list(collection.find({"deleted": False}).sort("createdAt", -1))
             tempAllApiKeys: list[dict[str, str]] = []
             for apiKey in apiKeys:
                 tempAllApiKeys.append(
@@ -135,6 +137,16 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 {"$set": {"status": "ERROR"}},
                 upsert=True,
             )
+            await webSocket.sendToUser(
+                email="afridayan01@gmail.com",
+                message=json.dumps(
+                    {
+                        "type": "UPDATE_API_KEY",
+                        "id": keyId,
+                        "status": "ERROR",
+                    }
+                ),
+            )
             return
 
         try:
@@ -185,6 +197,16 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 {"$set": {"status": "ACTIVE"}},
                 upsert=True,
             )
+            await webSocket.sendToUser(
+                email="afridayan01@gmail.com",
+                message=json.dumps(
+                    {
+                        "type": "UPDATE_API_KEY",
+                        "id": keyId,
+                        "status": "ACTIVE",
+                    }
+                ),
+            )
 
         except Exception as e:
             print(e)
@@ -204,6 +226,8 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
             keyId = str(uuid4())
             fileId = request.fileId
             keyDetails = self.keyInterface.GenerateKey()
+            createdAt = datetime.now(timezone.utc)
+
             tempApiSchema = ApiKeySchema(
                 id=keyId,
                 fileId=fileId,
@@ -212,6 +236,22 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 salt=Binary(keyDetails.salt),
                 name=request.name,
                 status="PENDING",
+                createdAt=createdAt,
+            )
+            await webSocket.sendToUser(
+                email="afridayan01@gmail.com",
+                message=json.dumps(
+                    {
+                        "type": "ADD_API_KEY",
+                        "key": keyDetails.key,
+                        "id": keyId,
+                        "name": request.name,
+                        "status": "PENDING",
+                        "createdAt": str(createdAt),
+                        "disabled": False,
+                        "deleted": False,
+                    }
+                ),
             )
             collection = self.db["apiKeys"]
             collection.insert_one(tempApiSchema.model_dump())

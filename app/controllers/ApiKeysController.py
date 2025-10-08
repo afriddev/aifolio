@@ -12,7 +12,7 @@ def getApiKeys():
     return ApiKeyService.GetAllApiKeys()
 
 
-@ApiKeysRouter.get("/apikeys/update/apikey")
+@ApiKeysRouter.post("/apikeys/update/apikey")
 def updateApiKey(request: UpdateApiKeyRequestModel):
     return ApiKeyService.UpdateApiKey(request)
 
