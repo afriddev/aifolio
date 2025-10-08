@@ -4,10 +4,19 @@ from typing import Any
 
 apiKeyServerConfig = redis.Redis(host="localhost", port=6000, db=0)
 apiKeyDataServerConfig = redis.Redis(host="localhost", port=6000, db=1)
+keyDetailsServerConfig = redis.Redis(host="localhost", port=6000, db=1)
 
 
 class RedisCacheImpl(ABC):
 
+    @abstractmethod
+    def setKeyDetails(self, key: str, value: str):
+        pass
+
+    @abstractmethod
+    def getKeyDetails(self, key: str) -> str | None:
+        pass
+    
     @abstractmethod
     def setApiKey(self, key: str, value: str):
         pass
@@ -19,6 +28,7 @@ class RedisCacheImpl(ABC):
     @abstractmethod
     def setApiKeyData(self, key: str, value: str):
         pass
+    
 
     @abstractmethod
     def getApiKeyDataValue(self, key: str) -> str | None:
@@ -38,7 +48,15 @@ class RedisCache(RedisCacheImpl):
     def __init__(self):
         self.apiKeyServer: Any = apiKeyServerConfig
         self.apiKeyDataServer: Any = apiKeyDataServerConfig
+        self.keyDetailsServer: Any = keyDetailsServerConfig
 
+    def setKeyDetails(self, key: str, value: str):
+        self.keyDetailsServer.set(key, value)
+
+    def getKeyDetails(self, key: str) -> str | None:
+        return self.keyDetailsServer.get(key)
+    
+    
     def setApiKey(self, key: str, value: str):
         self.apiKeyServer.set(key, value)
 

@@ -300,6 +300,10 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 status="PENDING",
                 createdAt=createdAt,
             )
+            self.redisClient.setKeyDetails(
+                keyDetails.key,
+                json.dumps({"id": keyId}),
+            )
             self.redisClient.setApiKey(
                 keyId,
                 json.dumps(
