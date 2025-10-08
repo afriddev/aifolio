@@ -4,17 +4,17 @@ from typing import Any
 
 apiKeyServerConfig = redis.Redis(host="localhost", port=6000, db=0)
 apiKeyDataServerConfig = redis.Redis(host="localhost", port=6000, db=1)
-keyDetailsServerConfig = redis.Redis(host="localhost", port=6000, db=1)
+keyIdServerConfig = redis.Redis(host="localhost", port=6000, db=1)
 
 
 class RedisCacheImpl(ABC):
 
     @abstractmethod
-    def setKeyDetails(self, key: str, value: str):
+    def setApiKeyId(self, key: str, value: str):
         pass
 
     @abstractmethod
-    def getKeyDetails(self, key: str) -> str | None:
+    def getApiKeyId(self, key: str) -> str | None:
         pass
     
     @abstractmethod
@@ -48,15 +48,15 @@ class RedisCache(RedisCacheImpl):
     def __init__(self):
         self.apiKeyServer: Any = apiKeyServerConfig
         self.apiKeyDataServer: Any = apiKeyDataServerConfig
-        self.keyDetailsServer: Any = keyDetailsServerConfig
+        self.keyIdServer: Any = keyIdServerConfig
 
-    def setKeyDetails(self, key: str, value: str):
-        self.keyDetailsServer.set(key, value)
+    def setApiKeyId(self, key: str, value: str):
+        self.keyIdServer.set(key, value)
 
-    def getKeyDetails(self, key: str) -> str | None:
-        return self.keyDetailsServer.get(key)
-    
-    
+    def getApiKeyId(self, key: str) -> str | None:
+        return self.keyIdServer.get(key)
+
+
     def setApiKey(self, key: str, value: str):
         self.apiKeyServer.set(key, value)
 

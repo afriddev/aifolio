@@ -4,9 +4,13 @@ from abc import ABC, abstractmethod
 class ChatbotControllerImpl(ABC):
 
     @abstractmethod
-    def GetApiKeyData(self, key: str) -> str | None:
+    def GetApiKeyStatus(self, keyId: str) -> str:
         pass
 
     @abstractmethod
-    def CheckApiKey(self, key: str) -> bool:
+    def GetApiKeyId(self, key: str) -> str | None:
+        pass
+
+    @abstractmethod
+    def GetApiKeyData(self, keyId: str) -> str:
         pass

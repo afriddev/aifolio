@@ -9,6 +9,7 @@ from .WebSocketControllerImpl import (
 )
 from .ApiKeysControllerServiceImpl import ApiKeysControllerServiceImpl
 from .AppUtilsImpl import AppUtilsImpl
+from .ChatbotControllerImpl import ChatbotControllerImpl
 
 __all__ = [
     "ChatControllerServiceImpl",
@@ -18,4 +19,5 @@ __all__ = [
     "WebSocketRouterControllerImpl",
     "ApiKeysControllerServiceImpl",
     "AppUtilsImpl",
+    "ChatbotControllerImpl",
 ]
