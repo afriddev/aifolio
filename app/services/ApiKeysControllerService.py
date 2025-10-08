@@ -109,10 +109,8 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
             collection.insert_one(dbSchema.model_dump())
 
             return JSONResponse(
-                status_code=413,
-                content={
-                    "data": "SUCCESS",
-                },
+                status_code=200,
+                content={"data": "SUCCESS", "fileId": str(fileId)},
             )
 
         except Exception as e:
@@ -127,8 +125,8 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
 
     async def HandleFileProcessing(self, keyId: str, retryLimit: int) -> None:
         apiKeyCollection = self.db["apiKeys"]
-        contextFileCollection = self.db["contextFiles"]
-        fileId = contextFileCollection.find_one({"id": keyId}).get("fileId")
+        fileId = apiKeyCollection.find_one({"id": keyId}).get("fileId")
+        
         fileContent = self.GetFileContent(fileId)
 
         if retryLimit >= 3:
@@ -207,6 +205,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                     }
                 ),
             )
+            return 
 
         except Exception as e:
             print(e)
