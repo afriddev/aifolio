@@ -24,3 +24,7 @@ def UploadFile(request: FileModel):
 @ApiKeysRouter.post("/apikeys/generate/apikey")
 async def generateApiKey(request:GenerateApiKeyRequestModel):
     return await ApiKeyService.GenerateApiKey(request)
+
+@ApiKeysRouter.get("/apikeys/apikey/data/{id}")
+async def getApiKeyData(id: str):
+    return ApiKeyService.GetApiKeyData(id)

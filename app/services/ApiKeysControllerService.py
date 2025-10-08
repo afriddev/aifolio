@@ -67,9 +67,15 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
             if request.method == "DELETE":
                 collection.update_one({"id": request.id}, {"$set": {"deleted": True}})
             elif request.method == "DISABLE":
-                collection.update_one({"id": request.id}, {"$set": {"disabled": True}})
+                collection.update_one(
+                    {"id": request.id},
+                    {"$set": {"disabled": True, "status": "DISABLED"}},
+                )
             elif request.method == "ENABLE":
-                collection.update_one({"id": request.id}, {"$set": {"disabled": False}})
+                collection.update_one(
+                    {"id": request.id},
+                    {"$set": {"disabled": False, "status": "ACTIVE"}},
+                )
             return JSONResponse(
                 status_code=200,
                 content={"data": "SUCCESS"},
@@ -126,7 +132,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
     async def HandleFileProcessing(self, keyId: str, retryLimit: int) -> None:
         apiKeyCollection = self.db["apiKeys"]
         fileId = apiKeyCollection.find_one({"id": keyId}).get("fileId")
-        
+
         fileContent = self.GetFileContent(fileId)
 
         if retryLimit >= 3:
@@ -205,7 +211,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                     }
                 ),
             )
-            return 
+            return
 
         except Exception as e:
             print(e)
@@ -219,9 +225,29 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
             return fileData.get("content", "")
         return ""
 
+    def GetApiKeyData(self, id: str) -> JSONResponse:
+        try:
+            apiKeyCollection = self.db["apiKeys"]
+            fileId = apiKeyCollection.find_one({"id": id}).get("fileId")
+            fileContent = self.GetFileContent(fileId)
+
+            return JSONResponse(
+                status_code=200,
+                content={"data": "SUCCESS", "keyData": fileContent},
+            )
+        except Exception as e:
+            print(e)
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "data": "ERROR",
+                    "error": str(e),
+                },
+            )
+
     async def GenerateApiKey(self, request: GenerateApiKeyRequestModel) -> JSONResponse:
 
-        if request.keyId is None:
+        if request.keyId is None and request.fileId is not None:
             keyId = str(uuid4())
             fileId = request.fileId
             keyDetails = self.keyInterface.GenerateKey()
@@ -260,10 +286,15 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 content={"data": "SUCCESS"},
             )
 
-        else:
+        elif request.keyId is not None and request.fileId is None:
             keyId = request.keyId
             asyncio.create_task(self.HandleFileProcessing(keyId, 0))
             return JSONResponse(
                 status_code=200,
                 content={"data": "SUCCESS"},
+            )
+        else:
+            return JSONResponse(
+                status_code=400,
+                content={"data": "ERROR"},
             )
