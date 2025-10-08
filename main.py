@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
-from app.controllers import ChatRouter, WebSocketRouterController, ApiKeysRouter
+from app.controllers import ChatRouter, WebSocketRouterController, ApiKeysRouter,ChatbotRouter
 from app import webSocket
 from fastapi import WebSocket, WebSocketDisconnect
 import json
@@ -30,6 +30,7 @@ app.add_middleware(
 )
 app.include_router(ChatRouter, prefix="/api/v1")
 app.include_router(ApiKeysRouter, prefix="/api/v1")
+app.include_router(ChatbotRouter, prefix="/api/v1")
 
 webSocketRouter = WebSocketRouterController()
 

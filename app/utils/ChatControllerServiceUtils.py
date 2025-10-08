@@ -95,9 +95,11 @@ Produce only one valid JSON object.
 - Do NOT summarize, shorten, rewrite, or rephrase sentences.
 - Keep all original wording, meaning, formatting, and line breaks.
 - Preserve punctuation, bullet points, tables, code blocks, and structure exactly.
+- Use professional markdown formatting.
 - Do NOT change tone or style.
 - Escape quotes and newlines so the JSON is valid.
 - Output **only** the JSON object — no explanations, no notes, no commentary.
+
 
 # Validation
 Output must be exactly one valid JSON object.

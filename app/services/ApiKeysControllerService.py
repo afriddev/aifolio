@@ -1,6 +1,6 @@
 from app.implementations import ApiKeysControllerServiceImpl
 from fastapi.responses import JSONResponse
-from database import mongoClient
+from database import mongoClient, redisClient
 from app.models import UpdateApiKeyRequestModel, FileModel, GenerateApiKeyRequestModel
 from app.utils import AppUtils, GENERATE_CONTENT_PROMPT
 from fastapi.responses import JSONResponse
@@ -29,6 +29,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
         self.docService = DocServices()
         self.chatService = ChatServices()
         self.keyInterface = HandleKeyInterface()
+        self.redisClient = redisClient
 
     def GetAllApiKeys(self) -> JSONResponse:
         try:
@@ -65,8 +66,11 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
         try:
             collection = self.db["apiKeys"]
             if request.method == "DELETE":
+                self.redisClient.deleteApiKey(request.id)
+                self.redisClient.deleteApiKeyData(request.id)
                 collection.update_one({"id": request.id}, {"$set": {"deleted": True}})
             elif request.method == "DISABLE":
+
                 collection.update_one(
                     {"id": request.id},
                     {"$set": {"disabled": True, "status": "DISABLED"}},
@@ -76,6 +80,15 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                     {"id": request.id},
                     {"$set": {"disabled": False, "status": "ACTIVE"}},
                 )
+            if request.method == "DISABLE" or request.method == "ENABLE":
+                redisKeyData = self.redisClient.getApiKeyValue(request.id)
+                if redisKeyData:
+                    redisKeyJson = json.loads(redisKeyData)
+                    redisKeyJson["status"] = (
+                        "DISABLED" if request.method == "DISABLE" else "ACTIVE"
+                    )
+                    self.redisClient.setApiKey(request.id, json.dumps(redisKeyJson))
+
             return JSONResponse(
                 status_code=200,
                 content={"data": "SUCCESS"},
@@ -141,6 +154,12 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 {"$set": {"status": "ERROR"}},
                 upsert=True,
             )
+            redisKeyData = self.redisClient.getApiKeyValue(keyId)
+            if redisKeyData:
+                redisKeyJson = json.loads(redisKeyData)
+                redisKeyJson["status"] = "ERROR"
+                self.redisClient.setApiKey(f"{keyId}", json.dumps(redisKeyJson))
+
             await webSocket.sendToUser(
                 email="afridayan01@gmail.com",
                 message=json.dumps(
@@ -166,9 +185,9 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                         ),
                     ],
                     maxCompletionTokens=8000,
-                    model=CerebrasChatModelEnum.GPT_OSS_120B,
+                    model=CerebrasChatModelEnum.QWEN_235B_INSTRUCT,
                     method="cerebras",
-                    temperature=0.1,
+                    temperature=0.3,
                     topP=0.9,
                     stream=False,
                     responseFormat={
@@ -189,10 +208,22 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                     time.sleep(3)
                     await self.HandleFileProcessing(keyId, 0)
             content = chatResponse.get("response", {}).get("content", "")
+
+            tempContentId = str(uuid4())
             apiKeyDataSchema = ApiKeyDataSchema(
                 apiKeyId=keyId,
                 data=content,
-                id=str(uuid4()),
+                id=tempContentId,
+            )
+            self.redisClient.setApiKeyData(
+                keyId,
+                json.dumps(
+                    {
+                        "id": tempContentId,
+                        "keyId": keyId,
+                        "data": content,
+                    }
+                ),
             )
             apiKeyDataCollection = self.db["apiKeyData"]
             apiKeyDataCollection.insert_one(apiKeyDataSchema.model_dump())
@@ -201,6 +232,12 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 {"$set": {"status": "ACTIVE"}},
                 upsert=True,
             )
+            redisKeyData = self.redisClient.getApiKeyValue(f"{keyId}")
+            if redisKeyData:
+                redisKeyJson = json.loads(redisKeyData)
+                redisKeyJson["status"] = "ACTIVE"
+                self.redisClient.setApiKey(f"{keyId}", json.dumps(redisKeyJson))
+
             await webSocket.sendToUser(
                 email="afridayan01@gmail.com",
                 message=json.dumps(
@@ -262,6 +299,18 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 name=request.name,
                 status="PENDING",
                 createdAt=createdAt,
+            )
+            self.redisClient.setApiKey(
+                keyId,
+                json.dumps(
+                    {
+                        "id": keyId,
+                        "key": keyDetails.key,
+                        "hash": keyDetails.hash,
+                        "salt": keyDetails.salt.hex(),
+                        "status": "PENDING",
+                    }
+                ),
             )
             await webSocket.sendToUser(
                 email="afridayan01@gmail.com",

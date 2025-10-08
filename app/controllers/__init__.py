@@ -1,5 +1,5 @@
 from .ChatController import ChatRouter
 from .WebSocketController import WebSocketRouterController
 from .ApiKeysController import ApiKeysRouter
-
-__all__ = ["ChatRouter", "WebSocketRouterController", "ApiKeysRouter"]
+from .ChatbotController import ChatbotRouter
+__all__ = ["ChatRouter", "WebSocketRouterController", "ApiKeysRouter", "ChatbotRouter"]
