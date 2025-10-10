@@ -5,7 +5,7 @@ from app.models import ChatbotRequestModel
 from models import ChatMessageModel, ChatRequestModel as ChatServiceRequestModel
 from enums import ChatMessageRoleEnum, OpenaiChatModelsEnum
 from services import ChatServices
-from typing import Any, cast
+from typing import Any
 from fastapi.responses import StreamingResponse
 from app.utils import CHATBOT_DEMO_PROMPT
 
@@ -41,7 +41,6 @@ class ChatbotControllerService(ChatbotControllerImpl):
     async def HandleChatbotRequest(
         self, request: ChatbotRequestModel
     ) -> StreamingResponse:
-        print("Hell Nah!")
         try:
             keyData = ""
             keyId = self.GetApiKeyId(request.apiKey)
@@ -49,67 +48,23 @@ class ChatbotControllerService(ChatbotControllerImpl):
 
             if keyId is None:
                 print(1)
-                return StreamingResponse(
-                    iter(
-                        [
-                            json.dumps(
-                                {
-                                    "type": "content",
-                                    "content": "Invalid API Key. Please provide a valid API Key.",
-                                }
-                            )
-                        ]
-                    )
-                )
+                return StreamingResponse(content=iter([]))
             else:
                 keyStatus = self.GetApiKeyStatus(keyId)
                 if keyStatus == "DISABLED":
                     print(2)
-
-                    return StreamingResponse(
-                        iter(
-                            [
-                                json.dumps(
-                                    {
-                                        "type": "content",
-                                        "content": "Your API Key is disabled. Please contact support.",
-                                    }
-                                )
-                            ]
-                        )
-                    )
+                    return StreamingResponse(content=iter([]))
 
                 elif keyStatus == "PENDING":
                     print(3)
-                    return StreamingResponse(
-                        iter(
-                            [
-                                json.dumps(
-                                    {
-                                        "type": "content",
-                                        "content": "Your API Key is in processing data. Please wait for some time.",
-                                    }
-                                )
-                            ]
-                        )
-                    )
+                    return StreamingResponse(content=iter([]))
+
                 elif keyStatus == "ACTIVE":
                     tempKeyData = self.GetApiKeyData(keyId)
                     if tempKeyData == "ERROR":
                         print(4)
+                        return StreamingResponse(content=iter([]))
 
-                        return StreamingResponse(
-                            iter(
-                                [
-                                    json.dumps(
-                                        {
-                                            "type": "content",
-                                            "content": "Sorry, Something went wrong !. Please Try again?",
-                                        }
-                                    )
-                                ]
-                            )
-                        )
                     else:
                         keyData = tempKeyData
 
@@ -151,20 +106,8 @@ class ChatbotControllerService(ChatbotControllerImpl):
                     messageId=request.messageId,
                 )
             )
-            print(response)
             return response
 
         except Exception as e:
             print(e)
-            return StreamingResponse(
-                iter(
-                    [
-                        json.dumps(
-                            {
-                                "type": "content",
-                                "content": "Sorry, Something went wrong !. Please Try again?",
-                            }
-                        )
-                    ]
-                )
-            )
+            return StreamingResponse(content=iter([]))
