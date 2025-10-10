@@ -45,17 +45,16 @@ class ChatServices(ChatServicesImpl):
         elif modelParams.method == "cerebras":
             cerebrasClient.api_key = GetCerebrasAPIKey()
 
-        createCall = client.chat.completions.create(
-            messages=cast(Any, modelParams.messages),
-            model=modelParams.model.value[0],
-            max_tokens=modelParams.maxCompletionTokens,
-            stream=modelParams.stream,
-            temperature=modelParams.temperature,
-            top_p=modelParams.topP,
-            frequency_penalty=0,
-            presence_penalty=0,
-            tools=cast(Any, modelParams.tools if modelParams.tools else None),
-            response_format=cast(
+        clientParams: dict[Any, Any] = {
+            "messages": cast(Any, modelParams.messages),
+            "model": modelParams.model.value[0],
+            "max_tokens": modelParams.maxCompletionTokens,
+            "stream": modelParams.stream,
+            "temperature": modelParams.temperature,
+            "top_p": modelParams.topP,
+            "frequency_penalty": 0,
+            "presence_penalty": 0,
+            "response_format": cast(
                 Any,
                 (
                     None
@@ -75,9 +74,13 @@ class ChatServices(ChatServicesImpl):
                     }
                 ),
             ),
-            tool_choice="auto",
-            stream_options={"include_usage": True},
-        )
+            "stream_options": {"include_usage": True},
+        }
+        if modelParams.tools:
+            clientParams["tools"] = cast(Any, modelParams.tools)
+            clientParams["tool_choice"] = "auto"
+
+        createCall = cast(Any, client.chat.completions.create(**clientParams))
 
         chatCompletion: Any = await createCall
 

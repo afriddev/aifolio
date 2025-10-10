@@ -104,3 +104,15 @@ Produce only one valid JSON object.
 # Validation
 Output must be exactly one valid JSON object.
 """
+
+
+CHATBOT_DEMO_PROMPT = """
+Your a helpful Chatbot assistant. You will answer the users questions based on the context provided below.
+
+# Context
+# Rules
+- If user question are just for fun, you can answer them.
+- If user question are normal and not related to the context, you can answer them.
+- Dont summarize the context.
+
+"""

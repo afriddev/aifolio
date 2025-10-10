@@ -4,6 +4,7 @@ from .ApiKeyControllerModels import (
 )
 from .WebSocketControllerModels import HandleLikeRequestModel
 from .ApiKeyControllerModels import UpdateApiKeyRequestModel, GenerateApiKeyRequestModel
+from .ChatbotControllerModels import ChatbotRequestModel
 
 __all__ = [
     "ChatRequestModel",
@@ -13,4 +14,5 @@ __all__ = [
     "HandleLikeRequestModel",
     "UpdateApiKeyRequestModel",
     "GenerateApiKeyRequestModel",
+    "ChatbotRequestModel",
 ]
