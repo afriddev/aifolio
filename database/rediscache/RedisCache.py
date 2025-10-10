@@ -2,9 +2,9 @@ import redis
 from abc import ABC, abstractmethod
 from typing import Any
 
-apiKeyServerConfig = redis.Redis(host="localhost", port=6000, db=0)
-apiKeyDataServerConfig = redis.Redis(host="localhost", port=6000, db=1)
-keyIdServerConfig = redis.Redis(host="localhost", port=6000, db=1)
+apiKeyServerConfig = redis.Redis(host="35.224.185.200", port=6000, db=0)
+apiKeyDataServerConfig = redis.Redis(host="35.224.185.200", port=6000, db=1)
+keyIdServerConfig = redis.Redis(host="35.224.185.200", port=6000, db=1)
 
 
 class RedisCacheImpl(ABC):
