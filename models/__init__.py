@@ -7,7 +7,12 @@ from .ChatServiceModels import (
     ChatMessageModel,
     ChatChoiceModel,
 )
-
+from .DocServiceModels import QaCsvChunksResponseModel, YtVideoChunksResponseModel
+from .RagServicesModels import (
+    ExtractQaFromChunkResponseModel,
+    QaChunkModel,
+    QaQuestionsModel,
+)
 
 __all__ = [
     "ChatChoiceMessageModel",
@@ -17,4 +22,6 @@ __all__ = [
     "ChatUsageModel",
     "ChatMessageModel",
     "ChatChoiceModel",
+    "QaCsvChunksResponseModel",
+    "YtVideoChunksResponseModel",
 ]

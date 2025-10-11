@@ -1,11 +1,14 @@
 import fitz
 import os
 import base64
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, cast
 from dotenv import load_dotenv
 import requests
-
+import re
 from implementations import DocServicesImpl
+from models import QaCsvChunksResponseModel, YtVideoChunksResponseModel
+from youtube_transcript_api import YouTubeTranscriptApi
+import pandas as pd
 
 
 load_dotenv()
@@ -14,6 +17,22 @@ load_dotenv()
 class DocServices(DocServicesImpl):
     def __init__(self):
         self.fileUrl = os.getenv("FILE_SERVER_URL", "")
+        self.ytApi = YouTubeTranscriptApi()
+
+    def ExtractTextFromCsv(self, docPath: str) -> str:
+        df = cast(Any, pd).read_csv(docPath, header=None)
+        allText: list[str] = []
+
+        for row in df.itertuples(index=False):
+            for col_index, value in enumerate(row):
+                if cast(Any, pd).isna(value):
+                    value = None
+                else:
+                    text = str(value).strip()
+                    value = text if text else "None"
+                allText.append(f"<<C{col_index+1}-START>>{value}<<C{col_index+1}-END>>")
+
+        return "\n".join(allText)
 
     def ExtractTextAndImagesFromPdf(
         self, docPath: str, images: bool = False
@@ -92,3 +111,55 @@ class DocServices(DocServicesImpl):
         except requests.RequestException as e:
             print(f"Error during request to file server: {e}")
             return None
+
+    def ExtractQaFromText(self, text: str) -> QaCsvChunksResponseModel:
+        questions = re.findall(r"<<C1-START>>(.*?)<<C1-END>>", text, re.DOTALL)
+        answers = re.findall(r"<<C2-START>>(.*?)<<C2-END>>", text, re.DOTALL)
+        additionalAnswers = re.findall(r"<<C3-START>>(.*?)<<C3-END>>", text, re.DOTALL)
+
+        combinedAnswer: list[str] = []
+        for ans, addAns in zip(answers, additionalAnswers):
+            if addAns != "None":
+                combinedAnswer.append(f"{ans} Alternative solution is {addAns}")
+            else:
+                combinedAnswer.append(ans)
+        return QaCsvChunksResponseModel(questions=questions, answers=combinedAnswer)
+
+    def ExtractChunksFromYtVideo(
+        self, videoId: str, chunkSec: int = 30
+    ) -> list[YtVideoChunksResponseModel]:
+        ytApiData = self.ytApi.fetch(videoId, languages=["hi", "en"])
+        chunkResponse: list[YtVideoChunksResponseModel] = []
+        currentChunkText = []
+        currentChunkStart = None
+
+        for item in ytApiData.snippets:
+            windowIndex = int(item.start) // chunkSec
+            windowStart = windowIndex * chunkSec
+
+            if currentChunkStart is None:
+                currentChunkStart = windowStart
+
+            if windowStart == currentChunkStart:
+                currentChunkText.append(item.text)
+            else:
+                chunkResponse.append(
+                    YtVideoChunksResponseModel(
+                        videoId=videoId,
+                        chunkText=" ".join(currentChunkText).strip(),
+                        chunkUrl=f"https://www.youtube.com/watch?v={videoId}&t={int(currentChunkStart)}s",
+                    )
+                )
+                currentChunkStart = windowStart
+                currentChunkText = [item.text]
+
+        if currentChunkText and currentChunkStart is not None:
+            chunkResponse.append(
+                YtVideoChunksResponseModel(
+                    videoId=videoId,
+                    chunkText=" ".join(currentChunkText).strip(),
+                    chunkUrl=f"https://www.youtube.com/watch?v={videoId}&t={int(currentChunkStart)}s",
+                )
+            )
+
+        return chunkResponse
