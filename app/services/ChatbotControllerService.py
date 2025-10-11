@@ -1,72 +1,94 @@
 from app.implementations import ChatbotControllerImpl
-from database import redisClient
 import json
-from app.models import ChatbotRequestModel
+from app.models import ChatbotRequestModel, GetApiKeyResponseModel
 from models import ChatMessageModel, ChatRequestModel as ChatServiceRequestModel
 from enums import ChatMessageRoleEnum, OpenaiChatModelsEnum
 from services import ChatServices
 from typing import Any
 from fastapi.responses import StreamingResponse
 from app.utils import CHATBOT_DEMO_PROMPT
+from database import mongoClient, cacheService
+from app.utils import AppUtils
 
 
 class ChatbotControllerService(ChatbotControllerImpl):
 
     def __init__(self):
-        self.redisClient = redisClient
         self.chatService = ChatServices()
+        self.appUtils = AppUtils()
+        self.db = mongoClient["aifolio"]
+        self.cache = cacheService
 
-    def GetApiKeyId(self, key: str) -> str | None:
-        tempKeyData = self.redisClient.getApiKeyId(key)
-        print(tempKeyData)
-        if tempKeyData is not None:
-            tempKeyData = json.loads(tempKeyData)
-            return tempKeyData["id"]
-        return None
+    def GetApiKeyData(self, key: str) -> GetApiKeyResponseModel | None:
+        tempApiKeyData = self.db["apiKeys"].find_one({"key": key})
+        tempApiKeyId = tempApiKeyData.get("id") if tempApiKeyData.get("id") else None
+        # Key Details
+        tempKeyStatus = (
+            tempApiKeyData.get("status") if tempApiKeyData.get("status") else None
+        )
+        tempKeyData = None
 
-    def GetApiKeyStatus(self, keyId: str) -> str:
-        tempKeyData = self.redisClient.getApiKeyValue(keyId)
-        if tempKeyData is not None:
-            tempKeyData = json.loads(tempKeyData)
-            return tempKeyData["status"]
-        return "NOT_FOUND"
+        if tempApiKeyId is None:
+            return None
+        elif tempKeyStatus != "ACTIVE":
+            return GetApiKeyResponseModel(status=tempKeyStatus, data=tempKeyData)
 
-    def GetApiKeyData(self, keyId: str) -> str:
-        tempKeyData = self.redisClient.getApiKeyDataValue(keyId)
-        if tempKeyData is not None:
-            tempKeyData = json.loads(tempKeyData)
-            return tempKeyData["data"]
-        return "ERROR"
+        else:
+            tempKeyDataDetails = self.db["apiKeyData"].find_one({"apiKeyId": tempApiKeyId})
+            tempKeyData = (
+                tempKeyDataDetails.get("data")
+                if tempKeyDataDetails.get("data")
+                else None
+            )
+
+        return GetApiKeyResponseModel(status=tempKeyStatus, data=tempKeyData)
+
+    def GetApiKeyDataFromCache(self, key: str) -> GetApiKeyResponseModel | None:
+        cachedData = self.cache.GetKeyDetails(key)
+        if cachedData:
+            return GetApiKeyResponseModel(**json.loads(cachedData))
+        else:
+            keyData = self.GetApiKeyData(key)
+            if keyData is None:
+                return None
+            elif keyData.status == "PENDING":
+                return GetApiKeyResponseModel(status="PENDING", data=None)
+
+            elif keyData.status == "DISABLED":
+                return GetApiKeyResponseModel(status="DISABLED", data=None)
+            else:
+                if keyData.status == "ACTIVE" and keyData.data:
+                    self.cache.SetKeyDetails(key, json.dumps(keyData.model_dump()))
+                    return keyData
+                else:
+                    return GetApiKeyResponseModel(status="ERROR", data=None)
 
     async def HandleChatbotRequest(
         self, request: ChatbotRequestModel
     ) -> StreamingResponse:
+
         try:
-            keyData = ""
-            keyId = self.GetApiKeyId(request.apiKey)
-            print("Hell Nah")
+            keyData = self.GetApiKeyDataFromCache(request.apiKey)
+            print(keyData)
+            if keyData is None:
+                return await self.appUtils.StreamErrorMessage(
+                    "Authentication failed: The provided API key is invalid or not recognized."
+                )
 
-            if keyId is None:
-                print(1)
-                return StreamingResponse(content=iter([]))
-            else:
-                keyStatus = self.GetApiKeyStatus(keyId)
-                if keyStatus == "DISABLED":
-                    print(2)
-                    return StreamingResponse(content=iter([]))
+            if keyData.status == "PENDING":
+                return await self.appUtils.StreamErrorMessage(
+                    "Your API key is still being activated. Please try again in a few minutes."
+                )
 
-                elif keyStatus == "PENDING":
-                    print(3)
-                    return StreamingResponse(content=iter([]))
+            if keyData.status == "DISABLED":
+                return await self.appUtils.StreamErrorMessage(
+                    "Access denied: This API key has been disabled. Contact support if you believe this is a mistake."
+                )
 
-                elif keyStatus == "ACTIVE":
-                    tempKeyData = self.GetApiKeyData(keyId)
-                    if tempKeyData == "ERROR":
-                        print(4)
-                        return StreamingResponse(content=iter([]))
-
-                    else:
-                        keyData = tempKeyData
+            if keyData.status == "ERROR":
+                return await self.appUtils.StreamErrorMessage(
+                    "The API key is in an error state due to a configuration or system issue. Please reach out to support for assistance."
+                )
 
             chatMessages: list[ChatMessageModel] = [
                 ChatMessageModel(
@@ -75,7 +97,7 @@ class ChatbotControllerService(ChatbotControllerImpl):
                 ),
                 ChatMessageModel(
                     role=ChatMessageRoleEnum.SYSTEM,
-                    content=keyData,
+                    content=keyData.data if keyData.data is not None else "",
                 ),
                 *(
                     ChatMessageModel(
@@ -93,7 +115,6 @@ class ChatbotControllerService(ChatbotControllerImpl):
                     content=(request.query),
                 ),
             ]
-            print("Hello")
             response: Any = await self.chatService.Chat(
                 modelParams=ChatServiceRequestModel(
                     messages=chatMessages,

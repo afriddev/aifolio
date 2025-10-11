@@ -1,16 +1,20 @@
 from abc import ABC, abstractmethod
+from app.models import ChatbotRequestModel, GetApiKeyResponseModel
+from fastapi.responses import StreamingResponse
 
 
 class ChatbotControllerImpl(ABC):
 
     @abstractmethod
-    def GetApiKeyStatus(self, keyId: str) -> str:
+    def GetApiKeyData(self, key: str) -> GetApiKeyResponseModel | None:
         pass
 
     @abstractmethod
-    def GetApiKeyId(self, key: str) -> str | None:
+    def GetApiKeyDataFromCache(self, key: str) -> GetApiKeyResponseModel | None:
         pass
 
     @abstractmethod
-    def GetApiKeyData(self, keyId: str) -> str:
+    async def HandleChatbotRequest(
+        self, request: ChatbotRequestModel
+    ) -> StreamingResponse:
         pass
