@@ -6,7 +6,7 @@ from app.utils import AppUtils, GENERATE_CONTENT_PROMPT
 from fastapi.responses import JSONResponse
 from services import DocServices
 from uuid import uuid4
-from app.schemas import ContextFileSchema
+from app.schemas import ApiKeyFileSchema
 from app.schemas import ApiKeySchema, ApiKeyDataSchema
 from services import ChatServices, DocServices
 from models import ChatMessageModel, ChatRequestModel, AllChunksWithQuestionsModel
@@ -107,14 +107,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                         "data": "ERROR",
                     },
                 )
-            # if tokensCount > 5000:
-            #     return JSONResponse(
-            #         status_code=413,
-            #         content={
-            #             "data": "FILE_TOO_LARGE",
-            #         },
-            #     )
-            dbSchema = ContextFileSchema(
+            dbSchema = ApiKeyFileSchema(
                 content=text,
                 name=request.name,
                 mediaType=request.mediaType,
@@ -268,7 +261,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
 
     async def GenerateApiKey(self, request: GenerateApiKeyRequestModel) -> JSONResponse:
 
-        
+
 
         if request.keyId is None and request.fileId is not None:
             keyId = str(uuid4())

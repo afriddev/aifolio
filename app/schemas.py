@@ -24,7 +24,7 @@ class ChatFileSchema(TimeStampedModel):
     tokensCount: int | None = 0
 
 
-class ContextFileSchema(TimeStampedModel):
+class ApiKeyFileSchema(TimeStampedModel):
     id: str
     name: str
     mediaType: str
