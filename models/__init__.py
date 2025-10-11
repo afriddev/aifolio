@@ -24,4 +24,7 @@ __all__ = [
     "ChatChoiceModel",
     "QaCsvChunksResponseModel",
     "YtVideoChunksResponseModel",
+    "ExtractQaFromChunkResponseModel",
+    "QaChunkModel",
+    "QaQuestionsModel",
 ]
