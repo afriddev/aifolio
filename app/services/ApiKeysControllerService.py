@@ -9,8 +9,7 @@ from uuid import uuid4
 from app.schemas import ContextFileSchema
 from app.schemas import ApiKeySchema, ApiKeyDataSchema
 from services import ChatServices, DocServices
-from models import ChatMessageModel, ChatRequestModel
-
+from models import ChatMessageModel, ChatRequestModel, AllChunksWithQuestionsModel
 from enums import ChatMessageRoleEnum, CerebrasChatModelEnum
 from bson.binary import Binary
 import json
@@ -268,6 +267,8 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
             )
 
     async def GenerateApiKey(self, request: GenerateApiKeyRequestModel) -> JSONResponse:
+
+        
 
         if request.keyId is None and request.fileId is not None:
             keyId = str(uuid4())

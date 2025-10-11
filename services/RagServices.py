@@ -1,5 +1,10 @@
 from models import QaCsvChunksResponseModel, ChatRequestModel, ChatMessageModel
-from models import ExtractQaFromChunkResponseModel, QaChunkModel, QaQuestionsModel
+from models import (
+    ExtractQaFromChunkResponseModel,
+    QaChunkModel,
+    QaQuestionsModel,
+    AllChunksWithQuestionsModel,
+)
 from services import DocServices, ChatServices
 from typing import Any, Tuple
 from enums import CerebrasChatModelEnum, ChatMessageRoleEnum
@@ -12,15 +17,22 @@ import unicodedata
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import string
 import secrets
+from implementations import (
+    RagServicesImpl,
+    ChunkServicesImpl,
+    ExtractInstanceServiceImpl,
+)
 
 
-class RagServices:
+class RagServices(RagServicesImpl):
 
     def __init__(self):
         self.ChunkServices = ChunkServices()
         self.ExtractInstanceService = ExtractInstanceService()
 
-    async def ExtractQuestionAndAnswersFromPdfFile(self, file: str):
+    async def ExtractQuestionAndAnswersFromPdfFile(
+        self, file: str
+    ) -> AllChunksWithQuestionsModel:
         chunks = await self.ChunkServices.ExtractChunksFromPdf(file=file)
         allChunks: list[QaChunkModel] = []
         allChunkQuestions: list[QaQuestionsModel] = []
@@ -46,8 +58,13 @@ class RagServices:
                     for q in chunkQaInfo.questions
                 ]
             )
+        return AllChunksWithQuestionsModel(
+            chunks=allChunks, questions=allChunkQuestions
+        )
 
-    async def ExtractQuestionsAndAnswersFromCsvFile(self, file: str):
+    async def ExtractQuestionsAndAnswersFromCsvFile(
+        self, file: str
+    ) -> AllChunksWithQuestionsModel:
         qa = self.ChunkServices.ExtractQuestionsAndAnswersFromCsvFile(file=file)
 
         allAnswers: list[QaChunkModel] = []
@@ -63,56 +80,11 @@ class RagServices:
                     text=qa.questions[index],
                 )
             )
+        return AllChunksWithQuestionsModel(chunks=allAnswers, questions=allQuestions)
 
-    async def ExtractQaRagInstancesFromYtVideo(self, videoId: str):
-
-        chunks = self.ChunkServices.ExtractChunksFromYtVideo(
-            chunkSec=400, videoId=videoId
-        )
-
-        allChunks: list[QaChunkModel] = []
-        allChunkQuestions: list[QaQuestionsModel] = []
-
-        for chunk in chunks:
-            cleanedChunk = await self.ExtractInstanceService.CleanYoutubeChunk(
-                retryLimit=0,
-                messages=[
-                    ChatMessageModel(
-                        role=ChatMessageRoleEnum.SYSTEM,
-                        content=CLEAN_YT_CHUNK_PROMPT,
-                    ),
-                    ChatMessageModel(
-                        role=ChatMessageRoleEnum.USER,
-                        content=chunk,
-                    ),
-                ],
-            )
-            messages: list[ChatMessageModel] = [
-                ChatMessageModel(
-                    role=ChatMessageRoleEnum.SYSTEM,
-                    content=EXTRACT_QUESTIONS_FROM_CHUNK_PROMPT,
-                ),
-                ChatMessageModel(
-                    role=ChatMessageRoleEnum.USER,
-                    content=cleanedChunk,
-                ),
-            ]
-
-            chunkRagInfo = await self.ExtractInstanceService.ExtractQuestionsFromChunk(
-                messages=messages, retryLimit=0
-            )
-
-            chunkId = uuid4()
-
-            allChunks.append(QaChunkModel(id=chunkId, text=chunkRagInfo.chunk))
-            allChunkQuestions.extend(
-                [
-                    QaQuestionsModel(id=uuid4(), chunkId=chunkId, text=question)
-                    for question in chunkRagInfo.questions
-                ]
-            )
-
-    async def ExtractQuestionAndAnswersFromYtVideo(self, videoId: str):
+    async def ExtractQuestionAndAnswersFromYtVideo(
+        self, videoId: str
+    ) -> AllChunksWithQuestionsModel:
 
         chunks = self.ChunkServices.ExtractChunksFromYtVideo(
             chunkSec=400, videoId=videoId
@@ -159,9 +131,12 @@ class RagServices:
                     for question in chunkRagInfo.questions
                 ]
             )
+        return AllChunksWithQuestionsModel(
+            chunks=tempAllChunks, questions=tempAllChunkQuestions
+        )
 
 
-class ChunkServices:
+class ChunkServices(ChunkServicesImpl):
     def __init__(self):
         self.docUtils = DocServices()
 
@@ -278,7 +253,7 @@ class ChunkServices:
         return response
 
 
-class ExtractInstanceService:
+class ExtractInstanceService(ExtractInstanceServiceImpl):
     def __init__(self):
         self.retryLimit = 5
         self.chatServices = ChatServices()

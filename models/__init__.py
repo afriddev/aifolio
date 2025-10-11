@@ -12,6 +12,7 @@ from .RagServicesModels import (
     ExtractQaFromChunkResponseModel,
     QaChunkModel,
     QaQuestionsModel,
+    AllChunksWithQuestionsModel
 )
 
 __all__ = [
@@ -27,4 +28,5 @@ __all__ = [
     "ExtractQaFromChunkResponseModel",
     "QaChunkModel",
     "QaQuestionsModel",
+    "AllChunksWithQuestionsModel"
 ]

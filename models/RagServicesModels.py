@@ -10,9 +10,17 @@ class ExtractQaFromChunkResponseModel(BaseModel):
 class QaChunkModel(BaseModel):
     id: UUID
     text: str
+    embedding: list[float] | None = None
 
 
 class QaQuestionsModel(BaseModel):
     id: UUID
     chunkId: UUID
     text: str
+    embedding: list[float] | None = None
+
+
+
+class AllChunksWithQuestionsModel(BaseModel):
+    chunks: list[QaChunkModel]
+    questions: list[QaQuestionsModel]
