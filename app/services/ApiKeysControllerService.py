@@ -8,7 +8,7 @@ from services import DocServices
 from uuid import uuid4
 from app.schemas import ContextFileSchema
 from app.schemas import ApiKeySchema, ApiKeyDataSchema
-from services import ChatServices
+from services import ChatServices, DocServices
 from models import ChatMessageModel, ChatRequestModel
 
 from enums import ChatMessageRoleEnum, CerebrasChatModelEnum
@@ -29,6 +29,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
         self.docService = DocServices()
         self.chatService = ChatServices()
         self.keyInterface = HandleKeyInterface()
+        self.docServices = DocServices()
 
     def GetAllApiKeys(self) -> JSONResponse:
         try:
@@ -97,13 +98,23 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
             fileId = uuid4()
             text, _ = self.docService.ExtractTextAndImagesFromPdf(request.data)
             tokensCount = self.appUtils.CountTokens(text)
-            if tokensCount > 5000:
+            fileUrl = self.docServices.UploadImageToFileServer(
+                request.data, request.name
+            )
+            if (fileUrl == None) or (fileUrl == ""):
                 return JSONResponse(
-                    status_code=413,
+                    status_code=500,
                     content={
-                        "data": "FILE_TOO_LARGE",
+                        "data": "ERROR",
                     },
                 )
+            # if tokensCount > 5000:
+            #     return JSONResponse(
+            #         status_code=413,
+            #         content={
+            #             "data": "FILE_TOO_LARGE",
+            #         },
+            #     )
             dbSchema = ContextFileSchema(
                 content=text,
                 name=request.name,
@@ -112,6 +123,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 id=str(fileId),
                 data=request.data,
                 tokensCount=tokensCount,
+                fileUrl=fileUrl,
             )
             collection = self.db["contextFiles"]
             collection.insert_one(dbSchema.model_dump())
@@ -228,7 +240,11 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
         collection = self.db["contextFiles"]
         fileData = collection.find_one({"id": fileId})
         if fileData:
-            return fileData.get("content", "")
+            return (
+                fileData.get("content", "")
+                + "\n\n"
+                + f"[📎 View or Download File]({fileData.get('fileUrl', '')})"
+            )
         return ""
 
     def GetApiKeyData(self, id: str) -> JSONResponse:

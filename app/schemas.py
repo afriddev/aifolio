@@ -33,6 +33,7 @@ class ContextFileSchema(TimeStampedModel):
     type: str = "context"
     content: str | None = None
     tokensCount: int | None = 0
+    fileUrl:str
 
 
 class ChatSchema(TimeStampedModel):

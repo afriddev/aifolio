@@ -9,7 +9,7 @@ class DocServicesImpl(ABC):
         pass
 
     @abstractmethod
-    async def UploadImageToBucket(
-        self, base64Str: str, folder: str, extension: str
-    ) -> str:
+    def UploadImageToFileServer(
+        self, base64Str: str,name: str
+    ) -> str | None:
         pass

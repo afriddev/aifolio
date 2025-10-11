@@ -1,14 +1,9 @@
 import fitz
-import boto3
-from botocore.exceptions import ClientError
 import os
 import base64
-from typing import Any, List, Optional, Tuple, cast
-from uuid import uuid4
-
-
+from typing import Any, List, Optional, Tuple
 from dotenv import load_dotenv
-
+import requests
 
 from implementations import DocServicesImpl
 
@@ -17,6 +12,9 @@ load_dotenv()
 
 
 class DocServices(DocServicesImpl):
+    def __init__(self):
+        self.fileUrl = os.getenv("FILE_SERVER_URL", "")
+
     def ExtractTextAndImagesFromPdf(
         self, docPath: str, images: bool = False
     ) -> Tuple[str, List[str]]:
@@ -81,45 +79,16 @@ class DocServices(DocServicesImpl):
 
         return "\n".join(finalTextParts), imagesB64
 
-    async def UploadImageToBucket(
-        self, base64Str: str, folder: str, extension: str
-    ) -> str:
+    def UploadImageToFileServer(self, base64Str: str, name: str) -> str | None:
         try:
-            contentType = (
-                "image/png"
-                if extension.lower() == "png"
-                else (
-                    "application/pdf"
-                    if (extension.lower() == "pdf")
-                    else "text/csv" if (extension.lower() == "csv") else "image/jpeg"
-                )
-            )
-
-            fileBytes: bytes = base64.b64decode(base64Str)
-            ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID", "")
-            SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
-            REGION = os.getenv("AWS_REGION", "ap-south-1")
-            BUCKET_NAME = os.getenv("AWS_BUCKET_NAME", "")
-
-            s3 = cast(Any, boto3).client(
-                "s3",
-                aws_access_key_id=ACCESS_KEY,
-                aws_secret_access_key=SECRET_KEY,
-                region_name=REGION,
-            )
-
-            fileName: str = f"{folder}/{uuid4()}.{extension}"
-            key = f"{folder}/{fileName}"
-            s3.put_object(
-                Bucket=BUCKET_NAME,
-                Key=key,
-                Body=fileBytes,
-                ACL="public-read",
-                ContentType=contentType,
-            )
-            publicUrl = f"https://{BUCKET_NAME}.s3.{REGION}.amazonaws.com/{key}"
-
-            return publicUrl
-        except ClientError as e:
-            print("Error uploading to S3:", e)
-            return ""
+            url = f"{self.fileUrl}/save/{name}"
+            response = requests.post(url, json={"data": base64Str})
+            response.raise_for_status()
+            tempServerResponse = response.json()
+            if tempServerResponse.get("data") == "SUCCESS":
+                return f"{self.fileUrl}/{tempServerResponse.get("name")}"
+            else:
+                return None
+        except requests.RequestException as e:
+            print(f"Error during request to file server: {e}")
+            return None
