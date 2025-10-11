@@ -69,7 +69,7 @@ class ChatbotControllerService(ChatbotControllerImpl):
 
         try:
             keyData = self.GetApiKeyDataFromCache(request.apiKey)
-            print(keyData)
+
             if keyData is None:
                 return await self.appUtils.StreamErrorMessage(
                     "Authentication failed: The provided API key is invalid or not recognized."
@@ -89,15 +89,12 @@ class ChatbotControllerService(ChatbotControllerImpl):
                 return await self.appUtils.StreamErrorMessage(
                     "The API key is in an error state due to a configuration or system issue. Please reach out to support for assistance."
                 )
-
+            
+            tempContextData = keyData.data if keyData.data is not None else ""
             chatMessages: list[ChatMessageModel] = [
                 ChatMessageModel(
                     role=ChatMessageRoleEnum.SYSTEM,
-                    content=CHATBOT_DEMO_PROMPT,
-                ),
-                ChatMessageModel(
-                    role=ChatMessageRoleEnum.SYSTEM,
-                    content=keyData.data if keyData.data is not None else "",
+                    content=CHATBOT_DEMO_PROMPT.replace("{INTERNAL_CONTEXT}", tempContextData),
                 ),
                 *(
                     ChatMessageModel(
@@ -118,10 +115,10 @@ class ChatbotControllerService(ChatbotControllerImpl):
             response: Any = await self.chatService.Chat(
                 modelParams=ChatServiceRequestModel(
                     messages=chatMessages,
-                    maxCompletionTokens=3000,
-                    model=OpenaiChatModelsEnum.MISTRAL_NEMOTRON_240K,
+                    maxCompletionTokens=1000,
+                    model=OpenaiChatModelsEnum.QWEN_NEXT_80B_250K_INSTRUCT,
                     method="openai",
-                    temperature=0.5,
+                    temperature=0.9,
                     topP=1.0,
                     stream=True,
                     messageId=request.messageId,
