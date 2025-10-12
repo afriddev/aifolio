@@ -1,15 +1,14 @@
 from .ChatServiceUtils import (
-    GetNvidiaApiKey,
-    GetNvidiaBaseUrl,
-    GetCerebrasApiKey,
-    GetCerebrasApiKey1,
-    GetCerebrasApiKey2,
-    GetCerebrasApiKey3,
-    GetCerebrasApiKey4,
+    GetNKey,
+    GetNUrl,
+    GetCKey,
+    GetCKey1,
+    GetCKey2,
+    GetCKey3,
+    GetCKey4,
     GetGroqBaseUrl,
-    GetNvidiaApiKey1,
+    GetNKey1,
     GetGroqApiKey,
-    GetNvidiaRerankBaseUrl,
 )
 
 from .RagServicesPrompts import (
@@ -18,17 +17,16 @@ from .RagServicesPrompts import (
 )
 
 __all__ = [
-    "GetNvidiaApiKey",
-    "GetNvidiaBaseUrl",
-    "GetCerebrasApiKey",
+    "GetNKey",
+    "GetNUrl",
+    "GetCKey",
     "CLEAN_YT_CHUNK_PROMPT",
     "EXTRACT_QUESTIONS_FROM_CHUNK_PROMPT",
-    "GetCerebrasApiKey1",
-    "GetCerebrasApiKey2",
-    "GetCerebrasApiKey3",
-    "GetCerebrasApiKey4",
+    "GetCKey1",
+    "GetCKey2",
+    "GetCKey3",
+    "GetCKey4",
     "GetGroqBaseUrl",
-    "GetNvidiaApiKey1",
+    "GetNKey1",
     "GetGroqApiKey",
-    "GetNvidiaRerankBaseUrl",
 ]

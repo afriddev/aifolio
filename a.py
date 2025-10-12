@@ -1,10 +1,10 @@
 # from openai import OpenAI
 # import json
-# from utils import GetNvidiaApiKey
+# from utils import GetNKey
 
 # client = OpenAI(
 #   base_url="https://integrate.api.nvidia.com/v1",
-#   api_key=GetNvidiaApiKey()
+#   api_key=GetNKey()
 # )
 
 # completion = client.chat.completions.create(

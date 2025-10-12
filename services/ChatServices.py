@@ -18,7 +18,7 @@ from enums import (
     ChatResponseStatusEnum,
 )
 
-from utils import GetNvidiaBaseUrl, GetNvidiaApiKey, GetCerebrasApiKey
+from utils import GetNUrl, GetNKey, GetCKey
 from app.ChatState import (
     ChatUsedTool,
     ChatEvent,
@@ -40,10 +40,10 @@ class ChatServices(ChatServicesImpl):
     async def OpenaiChat(self, modelParams: ChatRequestModel) -> Any:
         client = openAiClient if modelParams.method == "openai" else cerebrasClient
         if modelParams.method == "openai":
-            openAiClient.base_url = GetNvidiaBaseUrl()
-            openAiClient.api_key = GetNvidiaApiKey()
+            openAiClient.base_url = GetNUrl()
+            openAiClient.api_key = GetNKey()
         elif modelParams.method == "cerebras":
-            cerebrasClient.api_key = GetCerebrasApiKey()
+            cerebrasClient.api_key = GetCKey()
 
         clientParams: dict[Any, Any] = {
             "messages": cast(Any, modelParams.messages),

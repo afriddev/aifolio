@@ -1,6 +1,6 @@
 import random
 from openai import AsyncOpenAI
-from utils import GetNvidiaApiKey, GetNvidiaBaseUrl, GetNvidiaApiKey1
+from utils import GetNKey, GetNUrl, GetNKey1
 from implementations import EmbeddingImpl
 from models import (
     EmbeddingRequestModel,
@@ -21,15 +21,15 @@ import numpy as np
 import faiss
 
 
-openAiClient = AsyncOpenAI(base_url=GetNvidiaBaseUrl(), api_key=GetNvidiaApiKey())
-rerankClient = NVIDIARerank(api_key=GetNvidiaApiKey(), model="")
+openAiClient = AsyncOpenAI(base_url=GetNUrl(), api_key=GetNKey())
+rerankClient = NVIDIARerank(api_key=GetNKey(), model="")
 
 
 class Embedding(EmbeddingImpl):
 
     async def Embed(self, request: EmbeddingRequestModel) -> EmbeddingResponseModel:
         try:
-            nvidiaApiKeys = [GetNvidiaApiKey(), GetNvidiaApiKey1()]
+            nvidiaApiKeys = [GetNKey(), GetNKey1()]
             openAiClient.api_key = random.choice(nvidiaApiKeys)
             response = await openAiClient.embeddings.create(
                 model=request.model,
