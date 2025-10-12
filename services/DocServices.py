@@ -88,7 +88,7 @@ class DocServices(DocServicesImpl):
 
                     b64Str = base64.b64encode(data).decode("utf-8") if data else ""
                     imagesB64.append(b64Str)
-                    pageItems.append(("image", y0, placeholder if (images) else ""))
+                    pageItems.append(("image", y0, placeholder))
                     imageCounter += 1
 
             pageItems.sort(key=lambda x: x[1])
@@ -97,7 +97,6 @@ class DocServices(DocServicesImpl):
                     finalTextParts.append(content)
                 else:
                     finalTextParts.append(f"\n{content}\n")
-
         return "\n".join(finalTextParts), imagesB64,pages
 
     def UploadImageToFileServer(self, base64Str: str, name: str) -> str | None:

@@ -32,9 +32,9 @@ class ApiKeyFileSchema(TimeStampedModel):
     data: str
     size: int
     type: str = "context"
-    content: str | None = None
     tokensCount: int | None = 0
-    fileUrl: str
+    fileUrl: str | None = None
+    content: str | None = None
 
 
 class ChatSchema(TimeStampedModel):
@@ -71,7 +71,9 @@ class ApiKeySchema(TimeStampedModel):
     status: str = "PENDING"
     disabled: bool = False
     deleted: bool = False
-    type: str = "SINGLE"
+    filesType: str = "SINGLE"
+    singleFileId: str | None = None
+    methodType: str = "CONTEXT"
 
 
 class ApiKeyDataSchema(TimeStampedModel):

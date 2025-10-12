@@ -33,7 +33,7 @@ class RagServices(RagServicesImpl):
     async def ExtractQuestionAndAnswersFromPdfFile(
         self, file: str
     ) -> AllChunksWithQuestionsModel:
-        chunks = await self.ChunkServices.ExtractChunksFromPdf(file=file)
+        chunks = self.ChunkServices.ExtractChunksFromPdf(file=file)
         allChunks: list[QaChunkModel] = []
         allChunkQuestions: list[QaQuestionsModel] = []
 
@@ -193,7 +193,7 @@ class ChunkServices(ChunkServicesImpl):
                     merged = [carry]
             return merged
 
-        text, images = self.docUtils.ExtractTextAndImagesFromPdf(file)
+        text, images,_ = self.docUtils.ExtractTextAndImagesFromPdf(file)
         text = _normalizeText(text)
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunkSize,
@@ -209,7 +209,7 @@ class ChunkServices(ChunkServicesImpl):
             images,
         )
 
-    async def ExtractChunksFromPdf(self, file: str) -> list[str]:
+    def ExtractChunksFromPdf(self, file: str) -> list[str]:
         chunks, images = self.ExtractChunkFromPdfText(
             file=file, chunkOLSize=100, chunkSize=2000
         )

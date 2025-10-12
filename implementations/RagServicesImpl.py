@@ -42,7 +42,7 @@ class ChunkServicesImpl(ABC):
         pass
 
     @abstractmethod
-    async def ExtractChunksFromPdf(self, file: str) -> list[str]:
+    def ExtractChunksFromPdf(self, file: str) -> list[str]:
         pass
 
     @abstractmethod
