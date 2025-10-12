@@ -1,8 +1,8 @@
 import random
 from openai import AsyncOpenAI
 from utils import GetNvidiaApiKey, GetNvidiaBaseUrl, GetNvidiaApiKey1
-from clientservices.implementations import EmbeddingImpl
-from clientservices.models import (
+from implementations import EmbeddingImpl
+from models import (
     EmbeddingRequestModel,
     EmbeddingResponseModel,
     EmbeddingDataModel,

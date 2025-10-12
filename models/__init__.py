@@ -12,7 +12,18 @@ from .RagServicesModels import (
     ExtractQaFromChunkResponseModel,
     QaChunkModel,
     QaQuestionsModel,
-    AllChunksWithQuestionsModel
+    AllChunksWithQuestionsModel,
+)
+from .EmbeddingModels import (
+    EmbeddingDataModel,
+    EmbeddingRequestModel,
+    EmbeddingResponseModel,
+    EmbeddingUsageModel,
+    FindTopKresultsFromVectorsRequestModel,
+    FindTopKresultsFromVectorsResponseModel,
+    RerankRequestModel,
+    RerankResponseModel,
+    RerankResultModel,
 )
 
 __all__ = [
@@ -28,5 +39,14 @@ __all__ = [
     "ExtractQaFromChunkResponseModel",
     "QaChunkModel",
     "QaQuestionsModel",
-    "AllChunksWithQuestionsModel"
+    "AllChunksWithQuestionsModel",
+    "EmbeddingDataModel",
+    "EmbeddingRequestModel",
+    "EmbeddingResponseModel",
+    "EmbeddingUsageModel",
+    "FindTopKresultsFromVectorsRequestModel",
+    "FindTopKresultsFromVectorsResponseModel",
+    "RerankRequestModel",
+    "RerankResponseModel",
+    "RerankResultModel",
 ]

@@ -5,6 +5,7 @@ from .RagServicesImpl import (
     ChunkServicesImpl,
     ExtractInstanceServiceImpl,
 )
+from .EmbeddingImpl import EmbeddingImpl
 
 __all__ = [
     "ChatServicesImpl",
@@ -12,4 +13,5 @@ __all__ = [
     "RagServicesImpl",
     "ChunkServicesImpl",
     "ExtractInstanceServiceImpl",
+    "EmbeddingImpl",
 ]
