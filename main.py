@@ -6,17 +6,19 @@ from app.controllers import ChatRouter, WebSocketRouterController, ApiKeysRouter
 from app import webSocket
 from fastapi import WebSocket, WebSocketDisconnect
 import json
+from database import psqlDbClient
+import uvicorn
 
 
-# @asynccontextmanager
-# async def lifespan(app: FastAPI):
-#     # asyncio.create_task(psqlDbClient.connect())
-#     yield
-#     try:
-#         print("")
-#         # await asyncio.wait_for(psqlDbClient.close(), timeout=3)
-#     except asyncio.TimeoutError:
-#         print("⚠️ DB close timed out")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    asyncio.create_task(psqlDbClient.connect())
+    yield
+    try:
+        print("")
+        await asyncio.wait_for(psqlDbClient.close(), timeout=3)
+    except asyncio.TimeoutError:
+        print("⚠️ DB close timed out")
 
 
 app = FastAPI()
@@ -53,6 +55,4 @@ async def websocket_endpoint(websocket: WebSocket, email: str):
 
 
 if __name__ == "__main__":
-    import uvicorn
-
     uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=False)

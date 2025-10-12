@@ -8,7 +8,7 @@ from services import DocServices
 from uuid import uuid4
 from app.schemas import ApiKeyFileSchema
 from app.schemas import ApiKeySchema, ApiKeyDataSchema
-from services import ChatServices, DocServices, ChunkServices
+from services import ChatServices, DocServices, ChunkServices, RagServices
 from models import ChatMessageModel, ChatRequestModel
 from enums import ChatMessageRoleEnum, CerebrasChatModelEnum
 from bson.binary import Binary
@@ -28,8 +28,8 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
         self.docService = DocServices()
         self.chatService = ChatServices()
         self.keyInterface = HandleKeyInterface()
-        self.docServices = DocServices()
         self.chunkServices = ChunkServices()
+        self.ragServices = RagServices()
         self.maxContextTokens = 13000
         self.maxPagesLimit = 50
         self.minimumTokensPerPage = 50
@@ -151,7 +151,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 },
             )
 
-    def UploadImagesFromFile(self, text: str, images: list[str]):
+    def UploadImagesFromFile(self, text: str, images: list[str]) -> str:
         matchedIndex = re.findall(r"<<[Ii][Mm][Aa][Gg][Ee]-([0-9]+)>>", text)
         indeces = list(map(int, matchedIndex))
         for index in indeces:
@@ -166,29 +166,15 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
             )
         return text
 
-    async def HandleFileProcessing(self, keyId: str, retryLimit: int) -> None:
+    async def HandleSingleFileContextProcess(self, keyId: str, retryLimit: int) -> None:
         keyData = apiKeysCollection.find_one({"id": keyId})
         fileData = dataFilesCollection.find_one({"id": keyData.get("singleFileId")})
-        fileUrl = self.docServices.UploadImageToFileServer(
+        fileUrl = self.docService.UploadImageToFileServer(
             fileData.get("data"), fileData.get("name")
         )
 
         if (fileUrl == None) or (fileUrl == ""):
-            apiKeysCollection.update_one(
-                {"id": keyId},
-                {"$set": {"status": "ERROR"}},
-                upsert=True,
-            )
-            await webSocket.sendToUser(
-                email="afridayan01@gmail.com",
-                message=json.dumps(
-                    {
-                        "type": "UPDATE_API_KEY",
-                        "id": keyId,
-                        "status": "ERROR",
-                    }
-                ),
-            )
+            await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
             return
 
         text, images, _ = self.docService.ExtractTextAndImagesFromPdf(
@@ -201,22 +187,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
         )
 
         if retryLimit >= 3:
-            apiKeysCollection.update_one(
-                {"id": keyId},
-                {"$set": {"status": "ERROR"}},
-                upsert=True,
-            )
-
-            await webSocket.sendToUser(
-                email="afridayan01@gmail.com",
-                message=json.dumps(
-                    {
-                        "type": "UPDATE_API_KEY",
-                        "id": keyId,
-                        "status": "ERROR",
-                    }
-                ),
-            )
+            await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
             return
 
         try:
@@ -253,7 +224,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                     chatResponse = json.loads(response.content)
                 except Exception as e:
                     time.sleep(3)
-                    await self.HandleFileProcessing(keyId, 0)
+                    await self.HandleSingleFileContextProcess(keyId, 0)
             content = chatResponse.get("response", {}).get("content", "")
 
             tempContentId = str(uuid4())
@@ -269,22 +240,51 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 upsert=True,
             )
 
-            await webSocket.sendToUser(
-                email="afridayan01@gmail.com",
-                message=json.dumps(
-                    {
-                        "type": "UPDATE_API_KEY",
-                        "id": keyId,
-                        "status": "ACTIVE",
-                    }
-                ),
-            )
+            await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ACTIVE")
             return
 
         except Exception as e:
             print(e)
             time.sleep(60)
-        await self.HandleFileProcessing(keyId, 0)
+        await self.HandleSingleFileContextProcess(keyId, 0)
+
+    async def HandleSendUpdateKeyDetailsWebSocket(
+        self, keyId: str, status: str
+    ) -> None:
+        apiKeysCollection.update_one(
+            {"id": keyId},
+            {"$set": {"status": status}},
+            upsert=True,
+        )
+        await webSocket.sendToUser(
+            email="afridayan01@gmail.com",
+            message=json.dumps(
+                {
+                    "type": "UPDATE_API_KEY",
+                    "id": keyId,
+                    "status": status,
+                }
+            ),
+        )
+        return
+
+    async def HandleSingleFileRagProcess(self, keyId: str) -> None:
+        keyData = apiKeysCollection.find_one({"id": keyId})
+        fileData = dataFilesCollection.find_one({"id": keyData.get("singleFileId")})
+        fileUrl = self.docService.UploadImageToFileServer(
+            fileData.get("data"), fileData.get("name")
+        )
+        if (fileUrl == None) or (fileUrl == ""):
+            await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
+            return
+
+        if fileData.get("mediaType", "").lower() != "application/pdf":
+            tempQuestionsAndChunkResponse = (
+                await self.ragServices.ExtractQuestionAndAnswersFromPdfFile(
+                    file=fileData.get("data")
+                )
+            )
+        pass
 
     async def GenerateApiKey(self, request: GenerateApiKeyRequestModel) -> JSONResponse:
         if request.keyId is None:
@@ -331,27 +331,27 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 ),
             )
             apiKeysCollection.insert_one(tempApiSchema.model_dump())
-            if request.singleFileId is not None and request.methodType == "CONTEXT":
-                asyncio.create_task(self.HandleFileProcessing(keyId, 0))
+            if (
+                request.singleFileId is not None
+                and request.methodType == "CONTEXT"
+                and request.filesType == "SINGLE"
+            ):
+                asyncio.create_task(self.HandleSingleFileContextProcess(keyId, 0))
             return JSONResponse(
                 status_code=200,
                 content={"data": "SUCCESS"},
             )
 
         elif request.keyId:
-            await webSocket.sendToUser(
-                email="afridayan01@gmail.com",
-                message=json.dumps(
-                    {
-                        "type": "UPDATE_API_KEY",
-                        "id": request.keyId,
-                        "status": "PENDING",
-                    }
-                ),
-            )
-            if request.singleFileId is not None and request.methodType == "CONTEXT":
+            await self.HandleSendUpdateKeyDetailsWebSocket(request.keyId, "PENDING")
+
+            if (
+                request.singleFileId is not None
+                and request.methodType == "CONTEXT"
+                and request.filesType == "SINGLE"
+            ):
                 keyId = request.keyId
-                asyncio.create_task(self.HandleFileProcessing(keyId, 0))
+                asyncio.create_task(self.HandleSingleFileContextProcess(keyId, 0))
             return JSONResponse(
                 status_code=200,
                 content={"data": "SUCCESS"},
