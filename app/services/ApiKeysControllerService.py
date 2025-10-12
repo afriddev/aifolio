@@ -52,7 +52,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
         self.chunkServices = ChunkServices()
         self.ragServices = RagServices()
         self.embeddingService = EmbeddingService()
-        self.maxContextTokens = 13000
+        self.maxContextTokens = 5000
         self.maxPagesLimit = 50
         self.minimumTokensPerPage = 50
         self.maxChunkEmbeddingBatchSize = 10
@@ -317,10 +317,11 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
         )
         if (fileUrl == None) or (fileUrl == ""):
             await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
+            print(1)
             return
 
         tempQuestionsAndChunkResponse: AllChunksWithQuestionsModel | None = None
-        if fileData.get("mediaType", "").lower() != "application/pdf":
+        if fileData.get("mediaType", "") == "application/pdf":
             tempQuestionsAndChunkResponse = (
                 await self.ragServices.ExtractQuestionAndAnswersFromPdfFile(
                     file=fileData.get("data")
@@ -342,6 +343,8 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 )
                 if tempChunkEmbeddings is None:
                     await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
+                    print(2)
+
                     return
 
                 for j, chunk in enumerate(
@@ -360,6 +363,8 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                     ]
                 )
                 if tempQuestionEmbeddings is None:
+                    print(3)
+
                     await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
                     return
 
@@ -368,28 +373,36 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 ):
                     question.embedding = tempQuestionEmbeddings[j].embedding
 
-            async with self.db.pool.acquire() as conn:
-                await conn.executemany(
-                    "INSERT INTO chunks (id, text, embedding) VALUES ($1, $2, $3)",
-                    [
-                        (chunk.id, chunk.text, chunk.embedding)
-                        for chunk in tempAllChunks
-                    ],
-                )
+            try:
+                async with self.db.pool.acquire() as conn:
+                    await conn.executemany(
+                        "INSERT INTO chunks (id, text, embedding) VALUES ($1, $2, $3)",
+                        [
+                            (chunk.id, chunk.text, chunk.embedding)
+                            for chunk in tempAllChunks
+                        ],
+                    )
 
-                await conn.executemany(
-                    "INSERT INTO questions (id,chunk_id, text, embedding) VALUES ($1, $2, $3,$4)",
-                    [
-                        (
-                            question.id,
-                            question.chunkId,
-                            question.text,
-                            question.embedding,
-                        )
-                        for question in tempAllQuestions
-                    ],
-                )
+                    await conn.executemany(
+                        "INSERT INTO questions (id,chunk_id, text, embedding) VALUES ($1, $2, $3,$4)",
+                        [
+                            (
+                                question.id,
+                                question.chunkId,
+                                question.text,
+                                question.embedding,
+                            )
+                            for question in tempAllQuestions
+                        ],
+                    )
+                    await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "SUCCESS")
+            except Exception as e:
+                print(f"Error inserting into PostgreSQL: {e}")
+                await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
+                return
         else:
+            print(4)
+
             await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
             return
 

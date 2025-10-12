@@ -2,7 +2,12 @@ from fastapi import FastAPI
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
-from app.controllers import ChatRouter, WebSocketRouterController, ApiKeysRouter,ChatbotRouter
+from app.controllers import (
+    ChatRouter,
+    WebSocketRouterController,
+    ApiKeysRouter,
+    ChatbotRouter,
+)
 from app import webSocket
 from fastapi import WebSocket, WebSocketDisconnect
 import json
@@ -15,13 +20,12 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(psqlDbClient.connect())
     yield
     try:
-        print("")
         await asyncio.wait_for(psqlDbClient.close(), timeout=3)
     except asyncio.TimeoutError:
         print("⚠️ DB close timed out")
 
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

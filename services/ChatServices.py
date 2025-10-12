@@ -18,7 +18,16 @@ from enums import (
     ChatResponseStatusEnum,
 )
 
-from utils import GetNUrl, GetNKey, GetCKey
+from utils import (
+    GetNUrl,
+    GetNKey,
+    GetCKey,
+    GetCKey1,
+    GetCKey2,
+    GetCKey3,
+    GetCKey4,
+    GetNKey1,
+)
 from app.ChatState import (
     ChatUsedTool,
     ChatEvent,
@@ -29,6 +38,7 @@ from app.ChatState import (
     ChatTotalTokens,
     ReasoningTokens,
 )
+import random
 
 
 openAiClient = AsyncOpenAI(base_url="", api_key="")
@@ -40,9 +50,18 @@ class ChatServices(ChatServicesImpl):
     async def OpenaiChat(self, modelParams: ChatRequestModel) -> Any:
         client = openAiClient if modelParams.method == "openai" else cerebrasClient
         if modelParams.method == "openai":
+            nKeys = [GetNKey(), GetNKey1()]
             openAiClient.base_url = GetNUrl()
-            openAiClient.api_key = GetNKey()
+            openAiClient.api_key = random.choice(nKeys)
         elif modelParams.method == "cerebras":
+            cKeys = [
+                GetCKey(),
+                GetCKey1(),
+                GetCKey2(),
+                GetCKey3(),
+                GetCKey4(),
+            ]
+            cerebrasClient.api_key = random.choice(cKeys)
             cerebrasClient.api_key = GetCKey()
 
         clientParams: dict[Any, Any] = {
