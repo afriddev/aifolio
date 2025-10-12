@@ -25,7 +25,7 @@ openAiClient = AsyncOpenAI(base_url=GetNUrl(), api_key=GetNKey())
 rerankClient = NVIDIARerank(api_key=GetNKey(), model="")
 
 
-class Embedding(EmbeddingImpl):
+class EmbeddingService(EmbeddingImpl):
 
     async def Embed(self, request: EmbeddingRequestModel) -> EmbeddingResponseModel:
         try:

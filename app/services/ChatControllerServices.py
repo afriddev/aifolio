@@ -9,7 +9,7 @@ from app.utils import (
     CHAT_CONTROLLER_CHAT_PROMPT,
     CHAT_SUMMARY_PROMPT,
 )
-from database import chatMessagesCollection, chatsCollection,chatFilesCollection
+from database import chatMessagesCollection, chatsCollection, chatFilesCollection
 from uuid import uuid4
 from app.schemas import ChatFileSchema, ChatMessageSchema, ChatSchema
 from app.ChatState import (
@@ -401,5 +401,3 @@ class ChatControllerServices(ChatControllerServiceImpl):
                     "error": str(e),
                 },
             )
-
-    

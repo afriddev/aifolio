@@ -1,15 +1,36 @@
 from app.implementations import ApiKeysControllerServiceImpl
 from fastapi.responses import JSONResponse
-from database import dataFilesCollection, apiKeysCollection, singleApiKeyDataCollection
-from app.models import UpdateApiKeyRequestModel, FileModel, GenerateApiKeyRequestModel
+from database import (
+    dataFilesCollection,
+    apiKeysCollection,
+    singleApiKeyDataCollection,
+    psqlDbClient,
+)
+from app.models import (
+    UpdateApiKeyRequestModel,
+    FileModel,
+    GenerateApiKeyRequestModel,
+)
 from app.utils import AppUtils, GENERATE_CONTENT_PROMPT
 from fastapi.responses import JSONResponse
 from services import DocServices
 from uuid import uuid4
 from app.schemas import ApiKeyFileSchema
 from app.schemas import ApiKeySchema, ApiKeyDataSchema
-from services import ChatServices, DocServices, ChunkServices, RagServices
-from models import ChatMessageModel, ChatRequestModel
+from services import (
+    ChatServices,
+    DocServices,
+    ChunkServices,
+    RagServices,
+    EmbeddingService,
+)
+from models import (
+    ChatMessageModel,
+    ChatRequestModel,
+    AllChunksWithQuestionsModel,
+    EmbeddingRequestModel,
+    EmbeddingDataModel,
+)
 from enums import ChatMessageRoleEnum, CerebrasChatModelEnum
 from bson.binary import Binary
 import json
@@ -30,9 +51,13 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
         self.keyInterface = HandleKeyInterface()
         self.chunkServices = ChunkServices()
         self.ragServices = RagServices()
+        self.embeddingService = EmbeddingService()
         self.maxContextTokens = 13000
         self.maxPagesLimit = 50
         self.minimumTokensPerPage = 50
+        self.maxChunkEmbeddingBatchSize = 10
+        self.maxQuestionsEmbeddingBatchSize = 20
+        self.db = psqlDbClient
 
     def GetAllApiKeys(self) -> JSONResponse:
         try:
@@ -268,6 +293,22 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
         )
         return
 
+    async def ConvertTextsToEmbedding(
+        self, text: list[str]
+    ) -> list[EmbeddingDataModel] | None:
+        try:
+            tempEmbeddingResponse: Any = await self.embeddingService.Embed(
+                request=EmbeddingRequestModel(
+                    model="baai/bge-m3",
+                    texts=text,
+                    type="passage",
+                )
+            )
+            return tempEmbeddingResponse.data
+        except Exception as e:
+            print(f"Error in ConvertTextsToEmbedding: {e}")
+            return None
+
     async def HandleSingleFileRagProcess(self, keyId: str) -> None:
         keyData = apiKeysCollection.find_one({"id": keyId})
         fileData = dataFilesCollection.find_one({"id": keyData.get("singleFileId")})
@@ -278,13 +319,79 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
             await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
             return
 
+        tempQuestionsAndChunkResponse: AllChunksWithQuestionsModel | None = None
         if fileData.get("mediaType", "").lower() != "application/pdf":
             tempQuestionsAndChunkResponse = (
                 await self.ragServices.ExtractQuestionAndAnswersFromPdfFile(
                     file=fileData.get("data")
                 )
             )
-        pass
+
+        if tempQuestionsAndChunkResponse is not None:
+            tempAllChunks = tempQuestionsAndChunkResponse.chunks
+            tempAllQuestions = tempQuestionsAndChunkResponse.questions
+
+            for i in range(0, len(tempAllChunks), self.maxChunkEmbeddingBatchSize):
+                tempChunkEmbeddings = await self.ConvertTextsToEmbedding(
+                    text=[
+                        chunk.text
+                        for chunk in tempAllChunks[
+                            i : i + self.maxChunkEmbeddingBatchSize
+                        ]
+                    ]
+                )
+                if tempChunkEmbeddings is None:
+                    await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
+                    return
+
+                for j, chunk in enumerate(
+                    tempAllChunks[i : i + self.maxChunkEmbeddingBatchSize]
+                ):
+                    chunk.embedding = tempChunkEmbeddings[j].embedding
+            for i in range(
+                0, len(tempAllQuestions), self.maxQuestionsEmbeddingBatchSize
+            ):
+                tempQuestionEmbeddings = await self.ConvertTextsToEmbedding(
+                    text=[
+                        question.text
+                        for question in tempAllQuestions[
+                            i : i + self.maxQuestionsEmbeddingBatchSize
+                        ]
+                    ]
+                )
+                if tempQuestionEmbeddings is None:
+                    await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
+                    return
+
+                for j, question in enumerate(
+                    tempAllQuestions[i : i + self.maxQuestionsEmbeddingBatchSize]
+                ):
+                    question.embedding = tempQuestionEmbeddings[j].embedding
+
+            async with self.db.pool.acquire() as conn:
+                await conn.executemany(
+                    "INSERT INTO chunks (id, text, embedding) VALUES ($1, $2, $3)",
+                    [
+                        (chunk.id, chunk.text, chunk.embedding)
+                        for chunk in tempAllChunks
+                    ],
+                )
+
+                await conn.executemany(
+                    "INSERT INTO questions (id,chunk_id, text, embedding) VALUES ($1, $2, $3,$4)",
+                    [
+                        (
+                            question.id,
+                            question.chunkId,
+                            question.text,
+                            question.embedding,
+                        )
+                        for question in tempAllQuestions
+                    ],
+                )
+        else:
+            await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
+            return
 
     async def GenerateApiKey(self, request: GenerateApiKeyRequestModel) -> JSONResponse:
         if request.keyId is None:
@@ -331,12 +438,12 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 ),
             )
             apiKeysCollection.insert_one(tempApiSchema.model_dump())
-            if (
-                request.singleFileId is not None
-                and request.methodType == "CONTEXT"
-                and request.filesType == "SINGLE"
-            ):
-                asyncio.create_task(self.HandleSingleFileContextProcess(keyId, 0))
+            if request.singleFileId is not None and request.filesType == "SINGLE":
+                if request.methodType == "CONTEXT":
+                    asyncio.create_task(self.HandleSingleFileContextProcess(keyId, 0))
+                elif request.methodType == "RAG":
+                    asyncio.create_task(self.HandleSingleFileRagProcess(keyId))
+
             return JSONResponse(
                 status_code=200,
                 content={"data": "SUCCESS"},
@@ -344,14 +451,13 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
 
         elif request.keyId:
             await self.HandleSendUpdateKeyDetailsWebSocket(request.keyId, "PENDING")
-
-            if (
-                request.singleFileId is not None
-                and request.methodType == "CONTEXT"
-                and request.filesType == "SINGLE"
-            ):
+            if request.singleFileId is not None and request.filesType == "SINGLE":
                 keyId = request.keyId
-                asyncio.create_task(self.HandleSingleFileContextProcess(keyId, 0))
+                if request.methodType == "CONTEXT":
+                    asyncio.create_task(self.HandleSingleFileContextProcess(keyId, 0))
+                elif request.methodType == "RAG":
+                    asyncio.create_task(self.HandleSingleFileRagProcess(keyId))
+
             return JSONResponse(
                 status_code=200,
                 content={"data": "SUCCESS"},
