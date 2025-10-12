@@ -9,3 +9,4 @@ class ChatbotRequestModel(ChatRequestModel):
 class GetApiKeyResponseModel(BaseModel):
     status: str | None = None
     data: str | None = None
+    methodType: str = "CONTEXT"

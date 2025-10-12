@@ -22,7 +22,7 @@ import faiss
 
 
 openAiClient = AsyncOpenAI(base_url=GetNUrl(), api_key=GetNKey())
-rerankClient = NVIDIARerank(api_key=GetNKey(), model="")
+rerankClient = NVIDIARerank(api_key=GetNKey(), model="", top_n=10)
 
 
 class EmbeddingService(EmbeddingImpl):
@@ -61,6 +61,7 @@ class EmbeddingService(EmbeddingImpl):
 
         try:
             rerankClient.model = request.model
+            rerankClient.top_n = request.topN
 
             response = rerankClient.compress_documents(
                 query=request.query,

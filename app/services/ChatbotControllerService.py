@@ -1,14 +1,25 @@
 from app.implementations import ChatbotControllerImpl
 import json
 from app.models import ChatbotRequestModel, GetApiKeyResponseModel
-from models import ChatMessageModel, ChatRequestModel as ChatServiceRequestModel
+from models import (
+    ChatMessageModel,
+    ChatRequestModel as ChatServiceRequestModel,
+    EmbeddingDataModel,
+    EmbeddingRequestModel,
+    RerankRequestModel,
+)
 from enums import ChatMessageRoleEnum, OpenaiChatModelsEnum
-from services import ChatServices
-from typing import Any
+from services import ChatServices, EmbeddingService
+from typing import Any, cast
 from fastapi.responses import StreamingResponse
 from app.utils import CHATBOT_DEMO_PROMPT
-from database import  cacheService,apiKeysCollection,singleApiKeyDataCollection
-from app.utils import AppUtils
+from database import (
+    cacheService,
+    apiKeysCollection,
+    singleApiKeyDataCollection,
+    psqlDbClient,
+)
+from app.utils import AppUtils, SEARCH_RAG_QUERY, CHATBOT_RAG_DEMO_PROMPT
 
 
 class ChatbotControllerService(ChatbotControllerImpl):
@@ -17,30 +28,42 @@ class ChatbotControllerService(ChatbotControllerImpl):
         self.chatService = ChatServices()
         self.appUtils = AppUtils()
         self.cache = cacheService
+        self.db = psqlDbClient
+        self.embeddingService = EmbeddingService()
 
     def GetApiKeyData(self, key: str) -> GetApiKeyResponseModel | None:
         tempApiKeyData = apiKeysCollection.find_one({"key": key})
         tempApiKeyId = tempApiKeyData.get("id") if tempApiKeyData.get("id") else None
-        # Key Details
         tempKeyStatus = (
             tempApiKeyData.get("status") if tempApiKeyData.get("status") else None
+        )
+        tempApiKeyMethod = (
+            tempApiKeyData.get("methodType")
+            if tempApiKeyData.get("methodType")
+            else "CONTEXT"
         )
         tempKeyData = None
 
         if tempApiKeyId is None:
             return None
         elif tempKeyStatus != "ACTIVE":
-            return GetApiKeyResponseModel(status=tempKeyStatus, data=tempKeyData)
+            return GetApiKeyResponseModel(
+                status=tempKeyStatus, data=tempKeyData, methodType=tempApiKeyMethod
+            )
 
-        else:
-            tempKeyDataDetails = singleApiKeyDataCollection.find_one({"apiKeyId": tempApiKeyId})
+        elif tempApiKeyMethod == "CONTEXT" and tempKeyStatus == "ACTIVE":
+            tempKeyDataDetails = singleApiKeyDataCollection.find_one(
+                {"apiKeyId": tempApiKeyId}
+            )
             tempKeyData = (
                 tempKeyDataDetails.get("data")
                 if tempKeyDataDetails.get("data")
                 else None
             )
 
-        return GetApiKeyResponseModel(status=tempKeyStatus, data=tempKeyData)
+        return GetApiKeyResponseModel(
+            status=tempKeyStatus, data=tempKeyData, methodType=tempApiKeyMethod
+        )
 
     def GetApiKeyDataFromCache(self, key: str) -> GetApiKeyResponseModel | None:
         cachedData = self.cache.GetKeyDetails(key)
@@ -56,11 +79,27 @@ class ChatbotControllerService(ChatbotControllerImpl):
             elif keyData.status == "DISABLED":
                 return GetApiKeyResponseModel(status="DISABLED", data=None)
             else:
-                if keyData.status == "ACTIVE" and keyData.data:
+                if keyData.status == "ACTIVE":
                     self.cache.SetKeyDetails(key, json.dumps(keyData.model_dump()))
                     return keyData
                 else:
                     return GetApiKeyResponseModel(status="ERROR", data=None)
+
+    async def ConvertTextsToEmbedding(
+        self, text: list[str]
+    ) -> list[EmbeddingDataModel] | None:
+        try:
+            tempEmbeddingResponse: Any = await self.embeddingService.Embed(
+                request=EmbeddingRequestModel(
+                    model="baai/bge-m3",
+                    texts=text,
+                    type="passage",
+                )
+            )
+            return tempEmbeddingResponse.data
+        except Exception as e:
+            print(f"Error in ConvertTextsToEmbedding: {e}")
+            return None
 
     async def HandleChatbotRequest(
         self, request: ChatbotRequestModel
@@ -88,12 +127,59 @@ class ChatbotControllerService(ChatbotControllerImpl):
                 return await self.appUtils.StreamErrorMessage(
                     "The API key is in an error state due to a configuration or system issue. Please reach out to support for assistance."
                 )
-            
+
             tempContextData = keyData.data if keyData.data is not None else ""
+            searchResults: list[str] = []
+            topDocs: list[str] = []
+
+            if keyData.methodType == "RAG":
+                queryVector = await self.ConvertTextsToEmbedding([request.query])
+                if queryVector is None:
+                    raise Exception("Failed to generate embedding for the query.")
+                async with self.db.pool.acquire() as conn:
+                    await conn.set_type_codec(
+                        "jsonb",
+                        encoder=json.dumps,
+                        decoder=json.loads,
+                        schema="pg_catalog",
+                    )
+                    rows = await conn.fetch(
+                        SEARCH_RAG_QUERY, cast(Any, queryVector)[0].embedding, 5
+                    )
+
+                    for row in rows:
+                        question = row.get("question_text", "")
+                        answer = row.get("chunk_text", "")
+                        searchResults.append(
+                            f"For this question : {question} Answer is {answer}"
+                        )
+            #     topRerankedDocs = await self.embeddingService.RerankDocs(
+            #         request=RerankRequestModel(
+            #             query=request.query,
+            #             topN=5,
+            #             docs=searchResults,
+            #         )
+            #     )
+            #     topDocs: list[str] = [
+            #         cast(Any, doc.doc or "") for doc in topRerankedDocs.results
+            #     ]
+            # print(topDocs)
+
             chatMessages: list[ChatMessageModel] = [
-                ChatMessageModel(
-                    role=ChatMessageRoleEnum.SYSTEM,
-                    content=CHATBOT_DEMO_PROMPT.replace("{INTERNAL_CONTEXT}", tempContextData),
+                (
+                    ChatMessageModel(
+                        role=ChatMessageRoleEnum.SYSTEM,
+                        content=CHATBOT_DEMO_PROMPT.replace(
+                            "{INTERNAL_CONTEXT}", tempContextData
+                        ),
+                    )
+                    if keyData.methodType == "CONTEXT"
+                    else ChatMessageModel(
+                        role=ChatMessageRoleEnum.SYSTEM,
+                        content=CHATBOT_RAG_DEMO_PROMPT.replace(
+                            "{TOP_DOCS}", json.dumps(searchResults, indent=2)
+                        ),
+                    )
                 ),
                 *(
                     ChatMessageModel(

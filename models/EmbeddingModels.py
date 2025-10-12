@@ -29,6 +29,7 @@ class RerankRequestModel(BaseModel):
     query: str
     docs: list[str]
     model: str = "nvidia/nv-rerankqa-mistral-4b-v3"
+    topN: int = 5
 
 
 class RerankResultModel(BaseModel):
