@@ -21,7 +21,8 @@ async def lifespan(app: FastAPI):
     yield
     try:
         await asyncio.wait_for(psqlDbClient.close(), timeout=3)
-    except asyncio.TimeoutError:
+    except asyncio.TimeoutError as e:
+        print(f"Error occurred while closing DB connection: {e}")
         print("⚠️ DB close timed out")
 
 
@@ -54,7 +55,7 @@ async def websocket_endpoint(websocket: WebSocket, email: str):
                 continue
 
     except WebSocketDisconnect as e:
-        print(e)
+        print(f"WebSocket disconnected: {e}")
         await webSocket.disconnect(email)
 
 

@@ -79,7 +79,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                     },
                 )
             )
-            chatResponse: dict[str, Any] = {}
+            chatResponse: Any = {}
             if response.content:
                 try:
                     chatResponse = json.loads(response.content)
@@ -89,7 +89,6 @@ class ChatControllerServices(ChatControllerServiceImpl):
                     )
             title = chatResponse.get("response").get("summary", "")
             generated = chatResponse.get("response").get("generated", "")
-            print(f"title: {title}, generated: {generated}")
             titleGenerated = generated == "true"
 
             await webSocket.sendToUser(
@@ -118,7 +117,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 )
 
         except Exception as e:
-            print(e)
+            print(f"Error occurred while generating chat summary: {e}")
             time.sleep(3)
             await self.GenerateChatSummary(
                 query, id, emailId, messagesLength, retryLimit + 1
@@ -239,7 +238,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
             return response
 
         except Exception as e:
-            print(e)
+            print(f"Error occurred while handling chatbot request: {e}")
             return StreamingResponse(
                 iter([b"Sorry, Something went wrong !. Please Try again?"])
             )
@@ -248,7 +247,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
         try:
             chatMessagesCollection.insert_one(request.model_dump())
         except Exception as e:
-            print(e)
+            print(f"Error occurred while saving chat message: {e}")
             self.SaveChatMessage(request, retryLimit + 1) if retryLimit < 3 else None
 
     def SaveChat(
@@ -281,7 +280,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 content={"data": "SUCCESS", "allChats": tempAllChats},
             )
         except Exception as e:
-            print(e)
+            print(f"Error occurred while fetching all chats: {e}")
             return JSONResponse(
                 status_code=500,
                 content={
@@ -336,7 +335,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 content={"data": "SUCCESS", "id": id},
             )
         except Exception as e:
-            print(e)
+            print(f"Error occurred while deleting chat: {e}")
             return JSONResponse(
                 status_code=500,
                 content={
@@ -348,7 +347,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
     async def UploadFile(self, request: FileModel, retryLimit: int = 0) -> JSONResponse:
         try:
             fileId = uuid4()
-            text, _ = self.docService.ExtractTextAndImagesFromPdf(request.data)
+            text, _,_= self.docService.ExtractTextAndImagesFromPdf(request.data)
             tokensCount = self.appUtils.CountTokens(text)
             if tokensCount > 5000:
                 return JSONResponse(
@@ -391,7 +390,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 },
             )
         except Exception as e:
-            print(e)
+            print(f"Error occurred while uploading file: {e}")
             if retryLimit < 3:
                 return await self.UploadFile(request, retryLimit + 1)
             return JSONResponse(

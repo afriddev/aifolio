@@ -245,24 +245,24 @@ class ChatServices(ChatServicesImpl):
             )
 
         except openai.APIConnectionError as e:
-            print(e)
+            print(f"Error occurred while connecting to API: {e}")
             return ChatResponseModel(status=ChatResponseStatusEnum.REQUEST_TIMEOUT)
 
         except openai.RateLimitError as e:
-            print(e)
+            print(f"Error occurred while handling rate limit: {e}")
             return ChatResponseModel(status=ChatResponseStatusEnum.RATE_LIMIT)
 
         except openai.BadRequestError as e:
-            print(e)
+            print(f"Error occurred while handling bad request: {e}")
             return ChatResponseModel(status=ChatResponseStatusEnum.BAD_REQUEST)
 
         except openai.AuthenticationError as e:
-            print(e)
+            print(f"Error occurred while handling authentication: {e}")
             return ChatResponseModel(status=ChatResponseStatusEnum.UNAUTHORIZED)
 
         except openai.InternalServerError as e:
-            print(e)
+            print(f"Error occurred while handling internal server error: {e}")
             return ChatResponseModel(status=ChatResponseStatusEnum.SERVER_ERROR)
         except OpenAIError as e:
-            print(e)
+            print(f"Error occurred while handling OpenAI error: {e}")
             return ChatResponseModel(status=ChatResponseStatusEnum.SERVER_ERROR)

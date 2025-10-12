@@ -229,7 +229,6 @@ class ChunkServices(ChunkServicesImpl):
                         name=f"{self.GenerateShortId()}.png",
                     )
                     token = f"<<image-{index}>>"
-                    print(imageUrl)
                     chunkText = chunkText.replace(
                         token, f"![Image]({imageUrl})" if imageUrl is not None else ""
                     )
@@ -291,8 +290,8 @@ class ExtractInstanceService(ExtractInstanceServiceImpl):
 
             chatResponse = json.loads(cerebrasChatResponse.content).get("response")
 
-        except Exception:
-            print("Error occured while extracting realtions from chunk retrying ...")
+        except Exception as e:
+            print(f"Error occurred while extracting questions from chunk: {e}")
 
             messages.append(
                 ChatMessageModel(
@@ -343,8 +342,8 @@ class ExtractInstanceService(ExtractInstanceServiceImpl):
 
             chatResponse = json.loads(cerebrasChatResponse.content).get("response")
 
-        except Exception:
-            print("Error occured while extracting realtions from chunk retrying ...")
+        except Exception as e:
+            print(f"Error occurred while cleaning YouTube chunk: {e}")
             messages.append(
                 ChatMessageModel(
                     role=ChatMessageRoleEnum.USER,

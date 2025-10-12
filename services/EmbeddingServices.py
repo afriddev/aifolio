@@ -76,7 +76,7 @@ class EmbeddingService(EmbeddingImpl):
                 )
             return RerankResponseModel(results=temp)
         except Exception as e:
-            print(e)
+            print(f"Error occurred while reranking documents: {e}")
             return RerankResponseModel(results=[])
 
     def FindTopKResultsFromVectors(
@@ -94,5 +94,5 @@ class EmbeddingService(EmbeddingImpl):
             )
 
         except Exception as e:
-            print(e)
+            print(f"Error occurred while finding top K results from vectors: {e}")
             return FindTopKresultsFromVectorsResponseModel(distances=None, indeces=None)

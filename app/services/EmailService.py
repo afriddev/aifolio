@@ -49,5 +49,5 @@ class EmailService(EmailServiceImpl):
                 return EmailServiceResponseEnum.UNAUTHORIZED
 
         except Exception as error:
-            print(error)
+            print(f"Error occurred while sending email: {error}")
             return EmailServiceResponseEnum.ERROR

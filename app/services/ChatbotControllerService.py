@@ -126,5 +126,5 @@ class ChatbotControllerService(ChatbotControllerImpl):
             return response
 
         except Exception as e:
-            print(e)
+            print(f"Error occurred while handling chatbot request: {e}")
             return StreamingResponse(content=iter([]))

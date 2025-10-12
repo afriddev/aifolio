@@ -83,7 +83,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 content={"data": "SUCCESS", "keys": tempAllApiKeys},
             )
         except Exception as e:
-            print(e)
+            print(f"Error occurred while fetching API keys: {e}")
             return JSONResponse(
                 status_code=500,
                 content={"data": "SERVER_ERROR"},
@@ -112,7 +112,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 content={"data": "SUCCESS"},
             )
         except Exception as e:
-            print(e)
+            print(f"Error occurred while updating API key: {e}")
             return JSONResponse(
                 status_code=500,
                 content={
@@ -135,7 +135,6 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                     },
                 )
             tokensCount = self.appUtils.CountTokens(text)
-            print(tokensCount)
             if tokensCount / pages < self.minimumTokensPerPage:
                 return JSONResponse(
                     status_code=400,
@@ -168,7 +167,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
             )
 
         except Exception as e:
-            print(e)
+            print(f"Error occurred while uploading file: {e}")
             return JSONResponse(
                 status_code=500,
                 content={
@@ -185,7 +184,6 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 name=f"{self.chunkServices.GenerateShortId()}.png",
             )
             token = f"<<image-{index}>>"
-            print(imageUrl)
             text = text.replace(
                 token, f"![Image]({imageUrl})" if imageUrl is not None else ""
             )
@@ -269,7 +267,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
             return
 
         except Exception as e:
-            print(e)
+            print(f"Error occurred while handling single file context process: {e}")
             time.sleep(60)
         await self.HandleSingleFileContextProcess(keyId, 0)
 
@@ -317,7 +315,6 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
         )
         if (fileUrl == None) or (fileUrl == ""):
             await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
-            print(1)
             return
 
         tempQuestionsAndChunkResponse: AllChunksWithQuestionsModel | None = None
@@ -343,8 +340,6 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 )
                 if tempChunkEmbeddings is None:
                     await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
-                    print(2)
-
                     return
 
                 for j, chunk in enumerate(
@@ -363,8 +358,6 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                     ]
                 )
                 if tempQuestionEmbeddings is None:
-                    print(3)
-
                     await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
                     return
 
@@ -401,7 +394,6 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                 await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
                 return
         else:
-            print(4)
 
             await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
             return
