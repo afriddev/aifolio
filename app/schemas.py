@@ -22,6 +22,7 @@ class ChatFileSchema(TimeStampedModel):
     messageId: str
     chatId: str
     tokensCount: int | None = 0
+    type: str = "CONTEXT"
 
 
 class ApiKeyFileSchema(TimeStampedModel):
@@ -33,7 +34,7 @@ class ApiKeyFileSchema(TimeStampedModel):
     type: str = "context"
     content: str | None = None
     tokensCount: int | None = 0
-    fileUrl:str
+    fileUrl: str
 
 
 class ChatSchema(TimeStampedModel):
@@ -59,7 +60,10 @@ class ChatMessageSchema(TimeStampedModel):
 
 class ApiKeySchema(TimeStampedModel):
     id: str
-    fileId: str
+    pdfFileIds: list[str] | None = None
+    csvFileIds: list[str] | None = None
+    txtFileIds: list[str] | None = None
+    ytVideoFileIds: list[str] | None = None
     name: str
     key: str
     hash: str
@@ -67,6 +71,7 @@ class ApiKeySchema(TimeStampedModel):
     status: str = "PENDING"
     disabled: bool = False
     deleted: bool = False
+    type: str = "SINGLE"
 
 
 class ApiKeyDataSchema(TimeStampedModel):

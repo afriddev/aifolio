@@ -9,7 +9,7 @@ from app.utils import (
     CHAT_CONTROLLER_CHAT_PROMPT,
     CHAT_SUMMARY_PROMPT,
 )
-from database import mongoClient
+from database import chatMessagesCollection, chatsCollection,chatFilesCollection
 from uuid import uuid4
 from app.schemas import ChatFileSchema, ChatMessageSchema, ChatSchema
 from app.ChatState import (
@@ -33,7 +33,6 @@ from app.utils import AppUtils
 
 class ChatControllerServices(ChatControllerServiceImpl):
     def __init__(self):
-        self.db = mongoClient["aifolio"]
         self.chatService = ChatServices()
         self.docService = DocServices()
         self.handleKeyInterface = HandleKeyInterface()
@@ -247,8 +246,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
 
     def SaveChatMessage(self, request: ChatMessageSchema, retryLimit: int = 0) -> None:
         try:
-            collection = self.db["chatMessages"]
-            collection.insert_one(request.model_dump())
+            chatMessagesCollection.insert_one(request.model_dump())
         except Exception as e:
             print(e)
             self.SaveChatMessage(request, retryLimit + 1) if retryLimit < 3 else None
@@ -259,8 +257,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
         retryLimit: int = 0,
     ) -> None:
         try:
-            collection = self.db["chats"]
-            collection.update_one(
+            chatsCollection.update_one(
                 {"id": request.id}, {"$set": request.model_dump()}, upsert=True
             )
         except Exception as e:
@@ -269,8 +266,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
 
     def GetAllChats(self) -> JSONResponse:
         try:
-            collection = self.db["chats"]
-            chats = list(collection.find({}).sort("createdAt", -1))
+            chats = list(chatsCollection.find({}).sort("createdAt", -1))
             tempAllChats: list[dict[str, str]] = []
             for chat in chats:
                 tempAllChats.append(
@@ -296,11 +292,9 @@ class ChatControllerServices(ChatControllerServiceImpl):
 
     def getChatHistory(self, id: str) -> JSONResponse:
         try:
-            chatMessageCollection = self.db["chatMessages"]
-            chatCollection = self.db["chats"]
-            chatDetails = chatCollection.find_one({"id": id})
+            chatDetails = chatsCollection.find_one({"id": id})
 
-            chatsMessages = list(chatMessageCollection.find({"chatId": id}))
+            chatsMessages = list(chatMessagesCollection.find({"chatId": id}))
             tempChatHistory: list[dict[str, str]] = []
             for chat in chatsMessages:
                 tempChatHistory.append(
@@ -334,10 +328,8 @@ class ChatControllerServices(ChatControllerServiceImpl):
 
     def DeleteChat(self, id: str) -> JSONResponse:
         try:
-            chatCollection = self.db["chats"]
-            chatMessageCollection = self.db["chatMessages"]
-            chatCollection.delete_one({"id": id})
-            chatMessageCollection.delete_many({"chatId": id})
+            chatsCollection.delete_one({"id": id})
+            chatMessagesCollection.delete_many({"chatId": id})
 
             return JSONResponse(
                 status_code=200,
@@ -378,7 +370,6 @@ class ChatControllerServices(ChatControllerServiceImpl):
                 tokensCount=tokensCount,
             )
 
-            collection = self.db["chatFiles"]
             self.SaveChatMessage(
                 request=ChatMessageSchema(
                     id=request.messageId if request.messageId else str(uuid4()),
@@ -390,7 +381,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
                     fileId=str(fileId),
                 )
             )
-            collection.insert_one(dbSchema.model_dump())
+            chatFilesCollection.insert_one(dbSchema.model_dump())
             return JSONResponse(
                 status_code=200,
                 content={

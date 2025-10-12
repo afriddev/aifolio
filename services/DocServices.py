@@ -36,15 +36,17 @@ class DocServices(DocServicesImpl):
 
     def ExtractTextAndImagesFromPdf(
         self, docPath: str, images: bool = False
-    ) -> Tuple[str, List[str]]:
+    ) -> Tuple[str, List[str],int]:
         pdfBytes = base64.b64decode(docPath)
         doc: Any = fitz.open(stream=pdfBytes, filetype="pdf")
         # doc: Any = fitz.open(docPath)
         imagesB64: List[str] = []
         imageCounter: int = 1
         finalTextParts: List[str] = []
+        pages = 0
 
         for _, page in enumerate(doc, start=1):
+            pages += 1
             blocks = page.get_text("dict")["blocks"]
             pageItems: List[Tuple[str, float, str]] = []
 
@@ -96,7 +98,7 @@ class DocServices(DocServicesImpl):
                 else:
                     finalTextParts.append(f"\n{content}\n")
 
-        return "\n".join(finalTextParts), imagesB64
+        return "\n".join(finalTextParts), imagesB64,pages
 
     def UploadImageToFileServer(self, base64Str: str, name: str) -> str | None:
         try:

@@ -1,3 +1,17 @@
-from .MongoDb import mongoClient
+from .MongoDb import (
+    dataFilesCollection,
+    apiKeysCollection,
+    singleApiKeyDataCollection,
+    chatMessagesCollection,
+    chatsCollection,
+    chatFilesCollection
+)
 
-__all__ = ["mongoClient"]
+__all__ = [
+    "dataFilesCollection",
+    "apiKeysCollection",
+    "singleApiKeyDataCollection",
+    "chatMessagesCollection",
+    "chatsCollection",
+    "chatFilesCollection",
+]

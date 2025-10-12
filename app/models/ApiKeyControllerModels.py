@@ -13,9 +13,13 @@ class UpdateApiKeyRequestModel(BaseModel):
 
 
 class GenerateApiKeyRequestModel(BaseModel):
-    fileId: str | None = None
+    pdfFileIds: list[str] | None = None
+    csvFileIds: list[str] | None = None
+    txtFileIds: list[str] | None = None
+    ytVideoFileIds: list[str] | None = None
     keyId: str | None = None
     name: str
+    type:str = "SINGLE"
 
 
 class HandleFileProcessingRequestModel(BaseModel):

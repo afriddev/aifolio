@@ -7,7 +7,7 @@ from services import ChatServices
 from typing import Any
 from fastapi.responses import StreamingResponse
 from app.utils import CHATBOT_DEMO_PROMPT
-from database import mongoClient, cacheService
+from database import  cacheService,apiKeysCollection,singleApiKeyDataCollection
 from app.utils import AppUtils
 
 
@@ -16,11 +16,10 @@ class ChatbotControllerService(ChatbotControllerImpl):
     def __init__(self):
         self.chatService = ChatServices()
         self.appUtils = AppUtils()
-        self.db = mongoClient["aifolio"]
         self.cache = cacheService
 
     def GetApiKeyData(self, key: str) -> GetApiKeyResponseModel | None:
-        tempApiKeyData = self.db["apiKeys"].find_one({"key": key})
+        tempApiKeyData = apiKeysCollection.find_one({"key": key})
         tempApiKeyId = tempApiKeyData.get("id") if tempApiKeyData.get("id") else None
         # Key Details
         tempKeyStatus = (
@@ -34,7 +33,7 @@ class ChatbotControllerService(ChatbotControllerImpl):
             return GetApiKeyResponseModel(status=tempKeyStatus, data=tempKeyData)
 
         else:
-            tempKeyDataDetails = self.db["apiKeyData"].find_one({"apiKeyId": tempApiKeyId})
+            tempKeyDataDetails = singleApiKeyDataCollection.find_one({"apiKeyId": tempApiKeyId})
             tempKeyData = (
                 tempKeyDataDetails.get("data")
                 if tempKeyDataDetails.get("data")

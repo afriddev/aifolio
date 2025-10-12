@@ -8,7 +8,7 @@ class DocServicesImpl(ABC):
     @abstractmethod
     def ExtractTextAndImagesFromPdf(
         self, docPath: str, images: bool
-    ) -> Tuple[str, List[str]]:
+    ) -> Tuple[str, List[str],int]:
         pass
 
     @abstractmethod
