@@ -1,6 +1,6 @@
 import asyncio
 from app.implementations import ChatControllerServiceImpl
-from app.models import ChatRequestModel, FileModel
+from app.models import ChatRequestModel, FileModel, PreProcessUserQueryResponseModel
 from fastapi.responses import StreamingResponse, JSONResponse
 from models import ChatRequestModel as ChatServiceRequestModel, ChatMessageModel
 from enums import OpenaiChatModelsEnum, ChatMessageRoleEnum, CerebrasChatModelEnum
@@ -26,10 +26,8 @@ from typing import Any
 import json
 from app.WebSocketManager import webSocket
 import time
-
 from app.services.ApiKeyService import HandleKeyInterface
 from app.utils import AppUtils
-
 
 class ChatControllerServices(ChatControllerServiceImpl):
     def __init__(self):
@@ -37,6 +35,70 @@ class ChatControllerServices(ChatControllerServiceImpl):
         self.docService = DocServices()
         self.handleKeyInterface = HandleKeyInterface()
         self.appUtils = AppUtils()
+        self.retryLimit = 3
+
+    async def PreProcessUserQuery(
+        self, messages: list[ChatMessageModel], loopIndex: int
+    ) -> PreProcessUserQueryResponseModel:
+
+        if loopIndex > self.retryLimit:
+            raise Exception(
+                "Exception while extarcting relation and questions from chunk"
+            )
+
+        preProcessResponse: Any = await self.chatService.Chat(
+            modelParams=ChatServiceRequestModel(
+                messages=messages,
+                maxCompletionTokens=1000,
+                model=CerebrasChatModelEnum.META_LLAMA_108B_INSTRUCT,
+                method="cerebras",
+                temperature=0.2,
+                topP=0.9,
+                stream=False,
+                responseFormat={
+                    "type": "object",
+                    "properties": {
+                        "cleanquery": {"type": "string"},
+                        "type": {
+                            "type": "string",
+                            "enum": [
+                                "PREVIOUS",
+                                "ABUSE_LANG_ERROR",
+                                "CONTACT_INFO_ERROR",
+                                "SEARCH"
+                            ],
+                        },
+                    },
+                    "required": ["type"],
+                    "additionalProperties": False,
+                },
+            )
+        )
+
+        chatResponse: Any = {}
+        try:
+
+            chatResponse = json.loads(preProcessResponse.content).get("response")
+            if chatResponse.get("cleanquery") is None:
+                raise Exception("Exception while extracting relations from chunk")
+
+        except Exception as e:
+            print("Error occured while extracting realtions from chunk retrying ...")
+            print(e)
+            messages.append(
+                ChatMessageModel(
+                    role=ChatMessageRoleEnum.USER,
+                    content="Please generate a valid json object clean query and type",
+                )
+            )
+            await self.PreProcessUserQuery(
+                messages=messages,
+                loopIndex=loopIndex + 1,
+            )
+        return PreProcessUserQueryResponseModel(
+            cleanQuery=chatResponse.get("cleanquery"),
+            type=chatResponse.get("type"),
+        )
 
     async def GenerateChatSummary(
         self,
@@ -347,7 +409,7 @@ class ChatControllerServices(ChatControllerServiceImpl):
     async def UploadFile(self, request: FileModel, retryLimit: int = 0) -> JSONResponse:
         try:
             fileId = uuid4()
-            text, _,_= self.docService.ExtractTextAndImagesFromPdf(request.data)
+            text, _, _ = self.docService.ExtractTextAndImagesFromPdf(request.data)
             tokensCount = self.appUtils.CountTokens(text)
             if tokensCount > 5000:
                 return JSONResponse(

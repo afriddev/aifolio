@@ -42,7 +42,7 @@ import random
 
 
 openAiClient = AsyncOpenAI(base_url="", api_key="")
-cerebrasClient = AsyncCerebras(api_key="")
+cerebrasClient = AsyncCerebras(api_key="",max_retries=5)
 
 
 class ChatServices(ChatServicesImpl):

@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from typing import List
 from uuid import UUID
 
 
@@ -28,10 +27,15 @@ class ChatRequestModel(BaseModel):
     useWebSearch: bool
     useThink: bool
     useFlash: bool
-    messages: List[ChatMessageModel]
+    messages: list[ChatMessageModel]
     fileId: str | None = None
     emailId: str
     titleGenerated: bool | None = False
 
 class DeleteChatRequestModel(BaseModel):
     id: str
+    
+    
+class PreProcessUserQueryResponseModel(BaseModel):
+    cleanQuery: str
+    type:str

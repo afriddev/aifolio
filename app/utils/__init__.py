@@ -2,6 +2,7 @@ from .ChatControllerServiceUtils import (
     CHAT_CONTROLLER_CHAT_PROMPT,
     GENERATE_CONTENT_PROMPT,
     CHAT_SUMMARY_PROMPT,
+    VALIDATE_USER_QUERY_PROMPT
 )
 from .Apputils import AppUtils, SEARCH_RAG_QUERY
 from .ChatbotDemoServiceUtils import CHATBOT_DEMO_PROMPT, CHATBOT_RAG_DEMO_PROMPT
@@ -14,4 +15,5 @@ __all__ = [
     "CHATBOT_DEMO_PROMPT",
     "CHATBOT_RAG_DEMO_PROMPT",
     "SEARCH_RAG_QUERY",
+    "VALIDATE_USER_QUERY_PROMPT"
 ]

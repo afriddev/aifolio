@@ -388,7 +388,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                             for question in tempAllQuestions
                         ],
                     )
-                    await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "SUCCESS")
+                    await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ACTIVE")
             except Exception as e:
                 print(f"Error inserting into PostgreSQL: {e}")
                 await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")

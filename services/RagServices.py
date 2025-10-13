@@ -51,7 +51,7 @@ class RagServices(RagServicesImpl):
             )
 
             chunkId = uuid4()
-            allChunks.append(QaChunkModel(id=chunkId, text=chunkQaInfo.chunk))
+            allChunks.append(QaChunkModel(id=chunkId, text=chunk))
             allChunkQuestions.extend(
                 [
                     QaQuestionsModel(id=uuid4(), chunkId=chunkId, text=q)
@@ -124,7 +124,7 @@ class RagServices(RagServicesImpl):
 
             chunkId = uuid4()
 
-            tempAllChunks.append(QaChunkModel(id=chunkId, text=chunkRagInfo.chunk))
+            tempAllChunks.append(QaChunkModel(id=chunkId, text=chunk))
             tempAllChunkQuestions.extend(
                 [
                     QaQuestionsModel(id=uuid4(), chunkId=chunkId, text=question)
@@ -216,7 +216,6 @@ class ChunkServices(ChunkServicesImpl):
         processedChunk: list[str] = []
 
         for chunk in chunks:
-            processedChunk.append(chunk)
             matchedIndex = re.findall(r"<<[Ii][Mm][Aa][Gg][Ee]-([0-9]+)>>", chunk)
             indeces = list(map(int, matchedIndex))
             if len(indeces) == 0:
@@ -232,6 +231,7 @@ class ChunkServices(ChunkServicesImpl):
                     chunkText = chunkText.replace(
                         token, f"![Image]({imageUrl})" if imageUrl is not None else ""
                     )
+
                 processedChunk.append(chunkText)
 
         return processedChunk
@@ -270,7 +270,7 @@ class ExtractInstanceService(ExtractInstanceServiceImpl):
                 topP=0.9,
                 temperature=0.1,
                 maxCompletionTokens=5000,
-                model=CerebrasChatModelEnum.QWEN_235B_INSTRUCT,
+                model=CerebrasChatModelEnum.LLAMA_70B,
                 messages=messages,
                 responseFormat={
                     "type": "object",
@@ -322,8 +322,8 @@ class ExtractInstanceService(ExtractInstanceServiceImpl):
             modelParams=ChatRequestModel(
                 topP=0.9,
                 temperature=0.1,
-                maxCompletionTokens=3000,
-                model=CerebrasChatModelEnum.QWEN_235B_INSTRUCT,
+                maxCompletionTokens=8000,
+                model=CerebrasChatModelEnum.GPT_OSS_120B,
                 messages=messages,
                 responseFormat={
                     "type": "object",
