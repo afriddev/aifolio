@@ -226,7 +226,7 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
                         ),
                     ],
                     maxCompletionTokens=8000,
-                    model=CerebrasChatModelEnum.QWEN_235B_INSTRUCT,
+                    model=CerebrasChatModelEnum.GPT_OSS_120B,
                     method="cerebras",
                     temperature=0.3,
                     topP=0.9,

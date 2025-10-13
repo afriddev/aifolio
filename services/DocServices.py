@@ -106,7 +106,7 @@ class DocServices(DocServicesImpl):
             response.raise_for_status()
             tempServerResponse = response.json()
             if tempServerResponse.get("data") == "SUCCESS":
-                return f"{self.fileUrl}/{tempServerResponse.get("name")}"
+                return f'{self.fileUrl}/{tempServerResponse.get("name")}' 
             else:
                 return None
         except requests.RequestException as e:
