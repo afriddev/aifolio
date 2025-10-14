@@ -307,27 +307,12 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
             print(f"Error in ConvertTextsToEmbedding: {e}")
             return None
 
-    async def HandleSingleFileRagProcess(self, keyId: str) -> None:
-        keyData = apiKeysCollection.find_one({"id": keyId})
-        fileData = dataFilesCollection.find_one({"id": keyData.get("singleFileId")})
-        fileUrl = self.docService.UploadImageToFileServer(
-            fileData.get("data"), fileData.get("name")
-        )
-        if (fileUrl == None) or (fileUrl == ""):
-            await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
-            return
-
-        tempQuestionsAndChunkResponse: AllChunksWithQuestionsModel | None = None
-        if fileData.get("mediaType", "") == "application/pdf":
-            tempQuestionsAndChunkResponse = (
-                await self.ragServices.ExtractQuestionAndAnswersFromPdfFile(
-                    file=fileData.get("data")
-                )
-            )
-
-        if tempQuestionsAndChunkResponse is not None:
-            tempAllChunks = tempQuestionsAndChunkResponse.chunks
-            tempAllQuestions = tempQuestionsAndChunkResponse.questions
+    async def HandleSaveChunksToDatabaseProcess(
+        self, request: AllChunksWithQuestionsModel | None, keyId: str
+    ):
+        if request is not None:
+            tempAllChunks = request.chunks
+            tempAllQuestions = request.questions
 
             for i in range(0, len(tempAllChunks), self.maxChunkEmbeddingBatchSize):
                 tempChunkEmbeddings = await self.ConvertTextsToEmbedding(
@@ -397,6 +382,28 @@ class ApiKeysControllerService(ApiKeysControllerServiceImpl):
 
             await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
             return
+
+    async def HandleSingleFileRagProcess(self, keyId: str) -> None:
+        keyData = apiKeysCollection.find_one({"id": keyId})
+        fileData = dataFilesCollection.find_one({"id": keyData.get("singleFileId")})
+        fileUrl = self.docService.UploadImageToFileServer(
+            fileData.get("data"), fileData.get("name")
+        )
+        if (fileUrl == None) or (fileUrl == ""):
+            await self.HandleSendUpdateKeyDetailsWebSocket(keyId, "ERROR")
+            return
+
+        tempQuestionsAndChunkResponse: AllChunksWithQuestionsModel | None = None
+        if fileData.get("mediaType", "") == "application/pdf":
+            tempQuestionsAndChunkResponse = (
+                await self.ragServices.ExtractQuestionAndAnswersFromPdfFile(
+                    file=fileData.get("data")
+                )
+            )
+        
+        return await self.HandleSaveChunksToDatabaseProcess(
+            tempQuestionsAndChunkResponse, keyId
+        )
 
     async def GenerateApiKey(self, request: GenerateApiKeyRequestModel) -> JSONResponse:
         if request.keyId is None:
